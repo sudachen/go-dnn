@@ -10,4 +10,3 @@ func Test_0info(t *testing.T) {
 	t.Logf("libmxnet version %v", mx.LibVersion())
 	t.Logf("GPUs count %v", mx.GpuCount())
 }
-

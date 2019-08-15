@@ -19,4 +19,3 @@ func LibVersion() VersionType {
 func GpuCount() int {
 	return internal.GpuCount
 }
-

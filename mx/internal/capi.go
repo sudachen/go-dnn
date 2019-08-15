@@ -139,4 +139,3 @@ func ReleaseNDArrayHandle(handle NDArrayHandle) {
 		C.MXNDArrayFree(C.NDArrayHandle(handle))
 	}
 }
-

@@ -14,7 +14,11 @@ type NDArray struct {
 	err    error
 }
 
-func release(a *NDArray) { if a!= nil { internal.ReleaseNDArrayHandle(a.handle) } }
+func release(a *NDArray) {
+	if a != nil {
+		internal.ReleaseNDArrayHandle(a.handle)
+	}
+}
 
 // idiomatic finalizer
 func (a *NDArray) Close() error {
@@ -54,7 +58,7 @@ func (c Context) Array(tp Dtype, d Dimension) *NDArray {
 	return a
 }
 
-func (a *NDArray) Init(vals ...interface{}) *NDArray{
+func (a *NDArray) Init(vals ...interface{}) *NDArray {
 	return a
 }
 

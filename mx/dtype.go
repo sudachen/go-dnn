@@ -6,10 +6,10 @@ const (
 	Float32 Dtype = 0
 	Float64 Dtype = 1
 	Float16 Dtype = 2
-	Uint8 Dtype = 3
-	Int32 Dtype = 4
-	Int8  Dtype = 5
-	Int64 Dtype = 6
+	Uint8   Dtype = 3
+	Int32   Dtype = 4
+	Int8    Dtype = 5
+	Int64   Dtype = 6
 )
 
 func (tp Dtype) String() string {

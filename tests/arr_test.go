@@ -7,7 +7,7 @@ import (
 )
 
 func f_Array(ctx mx.Context, t *testing.T) {
-	t.Logf("Array on %v",ctx)
+	t.Logf("Array on %v", ctx)
 	a := ctx.Array(mx.Int32, mx.Dim(100))
 	defer a.Release()
 	assert.NilError(t, a.Err())
@@ -36,14 +36,14 @@ func f_Array(ctx mx.Context, t *testing.T) {
 }
 
 func Test_Array1(t *testing.T) {
-	f_Array(mx.CPU,t)
+	f_Array(mx.CPU, t)
 	for gno := 0; gno < mx.GpuCount(); gno++ {
-		f_Array(mx.Gpu(gno),t)
+		f_Array(mx.Gpu(gno), t)
 	}
 }
 
 func f_Random(ctx mx.Context, t *testing.T) {
-	t.Logf("Random_Uniform on %v",ctx)
+	t.Logf("Random_Uniform on %v", ctx)
 	a := ctx.Array(mx.Float32, mx.Dim(1, 3)).Uniform(0, 1)
 	defer a.Release()
 	assert.NilError(t, a.Err())
@@ -51,9 +51,8 @@ func f_Random(ctx mx.Context, t *testing.T) {
 }
 
 func Test_Random(t *testing.T) {
-	f_Random(mx.CPU,t)
+	f_Random(mx.CPU, t)
 	if mx.GpuCount() > 0 {
-		f_Random(mx.GPU0,t)
+		f_Random(mx.GPU0, t)
 	}
 }
-

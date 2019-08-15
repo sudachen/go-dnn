@@ -5,6 +5,7 @@ import (
 )
 
 type SymbolOp int
+
 const (
 	NoneOp SymbolOp = iota
 	VarOp
@@ -19,9 +20,9 @@ const (
 )
 
 type Symbol struct {
-	op SymbolOp
+	op    SymbolOp
 	value string
-	l, r *Symbol
+	l, r  *Symbol
 }
 
 func (s *Symbol) String() string {
@@ -29,11 +30,12 @@ func (s *Symbol) String() string {
 	//return fmt.Sprintf("&op{%s}",s.name)
 }
 
-type _input_ struct {}
+type _input_ struct{}
+
 func Input(_input_) {}
 
 func JsonSymbol(json string) *Symbol {
-	return &Symbol{ op: JsonOp, value: json }
+	return &Symbol{op: JsonOp, value: json}
 }
 
 func Add(lv interface{}, rv interface{}) *Symbol {
@@ -53,20 +55,20 @@ func Dot(lv interface{}, rv interface{}) *Symbol {
 }
 
 func Var(name string) *Symbol {
-	return &Symbol{ op: VarOp, value: name }
+	return &Symbol{op: VarOp, value: name}
 }
 
 func SymbolCast(i interface{}) (*Symbol, error) {
 	var o *Symbol
 	switch v := i.(type) {
 	case func(_input_):
-		o = &Symbol{ op: InputOp }
+		o = &Symbol{op: InputOp}
 	case string:
 		o = Var(v)
 	case *Symbol:
 		o = v
 	case float32, float64, int, int8, int32, int64, uint, uint8, uint32, uint64:
-		o = &Symbol{ op: ScalarOp, value: fmt.Sprintf("%v", v) }
+		o = &Symbol{op: ScalarOp, value: fmt.Sprintf("%v", v)}
 	}
 	if o != nil {
 		return o, nil
@@ -77,12 +79,11 @@ func SymbolCast(i interface{}) (*Symbol, error) {
 func GenericOp2(op SymbolOp, lv interface{}, rv interface{}) *Symbol {
 	var l, r *Symbol
 	var err error
-	if l,err = SymbolCast(lv); err != nil {
+	if l, err = SymbolCast(lv); err != nil {
 		panic(err.Error())
 	}
-	if r,err = SymbolCast(rv); err != nil {
+	if r, err = SymbolCast(rv); err != nil {
 		panic(err.Error())
 	}
-	return &Symbol{op: op, l: l, r: r }
+	return &Symbol{op: op, l: l, r: r}
 }
-
