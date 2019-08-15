@@ -1,22 +1,21 @@
-version: 2 # use CircleCI 2.0
-jobs: # basic units of work in a run
-  build: # runs not using Workflows must have a `build` job as entry point
-    docker: # run the steps with Docker
-      # CircleCI Go images available at: https://hub.docker.com/r/circleci/golang/
+version: 2
+jobs:
+  build:
+    docker:
       - image: sudachen/go-mxnet-ci
 
     parallelism: 1
 
-    environment: # environment variables for the build itself
+    environment:
       #OMP_NUM_THREADS: 4
       #MXNET_CPU_WORKER_NTHREADS: 2
-      CC_TEST_REPORTER_ID: 8d2e3df7f0a2808d79cd3b91bb236f8180af441d4244c9cca091b2307931580e
+      CC_TEST_REPORTER_ID: 3497043e6266d8dd8e96f0a37963851e268c88881e8886b3930f57435e851a75
 
-    steps: # steps that comprise the `build` job
-      - checkout # check out source code to working directory
+    steps:
+      - checkout
 
-      - restore_cache: # restores saved cache if no changes are detected since last run
-          # Read about caching dependencies: https://circleci.com/docs/2.0/caching/
+      - restore_cache:
+          # https://circleci.com/docs/2.0/caching/
           keys:
             - v1-pkg-cache
 
@@ -25,10 +24,10 @@ jobs: # basic units of work in a run
       - run: make run-tests
 
       - run: mkdir -p github.com/sudachen &&
-             ln -s $(pwd) github.com/sudachen/go-mxnet &&
+             ln -s $(pwd) github.com/sudachen/go-dnn &&
              /usr/local/bin/cc-test-reporter after-build
 
-      - save_cache: # Store cache in the /go/pkg directory
+      - save_cache:
           key: v1-pkg-cache
           paths:
             - "/go/pkg"

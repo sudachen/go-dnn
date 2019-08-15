@@ -3,7 +3,7 @@ space := $(null) #
 comma := ,
 
 PKGSLIST = mx mx/internal
-COVERPKGS= $(subst $(space),$(comma),$(strip $(foreach i,$(PKGSLIST),github.com/sudachen/go-mxnet/$(i))))
+COVERPKGS= $(subst $(space),$(comma),$(strip $(foreach i,$(PKGSLIST),github.com/sudachen/go-dnn/$(i))))
 
 build:
 	cd mx; go build
