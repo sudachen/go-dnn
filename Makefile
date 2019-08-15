@@ -9,5 +9,7 @@ build:
 	cd mx; go build
 
 run-tests:
-	cd tests && go test -coverprofile=../c.out -coverpkg=$(COVERPKGS)
+	#mkdir -p $${GOPATH:-$(HOME)/go}/src/github.com/sudachen
+	#ln -sf $$(pwd) $${GOPATH:-$(HOME)/go}/src/github.com/sudachen/go-dnn
+	go test -coverprofile=c.out -coverpkg=$(COVERPKGS) ./...
 
