@@ -26,6 +26,10 @@ func (c Context) DevNo() int {
 	return int(c) / 1000
 }
 
+func (c Context) IsGPU() bool {
+	return c.DevType() == 2
+}
+
 func (c Context) String() string {
 	switch c.DevType() {
 	case 0:

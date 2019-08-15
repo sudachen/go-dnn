@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func Test_Forward(t *testing.T) {
+func _Test_Forward(t *testing.T) {
 	var err error
 
 	input := [][]float32{

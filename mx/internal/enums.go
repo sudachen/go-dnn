@@ -24,6 +24,7 @@ type MxnetOp int
 const (
 	OpEmpty MxnetOp = iota
 	OpRandomUniform
+	OpCopyTo
 	OpNoOp
 )
 
@@ -31,6 +32,8 @@ func (o MxnetOp) Value() string {
 	switch o {
 	case OpRandomUniform:
 		return "_random_uniform"
+	case OpCopyTo:
+		return "_copyto"
 	}
 	panic("mxnet operation out of range")
 }

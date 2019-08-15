@@ -41,9 +41,14 @@ func (dim Dimension) Good() bool {
 	return true
 }
 
-// sizeof one dimension of array
+// sizeof whole array data
 func (dim Dimension) SizeOf(dt Dtype) int {
-	r := dt.Size()
+	return dt.Size() * dim.Total()
+}
+
+// total elements in the whole array
+func (dim Dimension) Total() int {
+	r := 1
 	for i := 0; i < dim.Len; i++ {
 		r *= dim.Shape[i]
 	}
