@@ -23,9 +23,7 @@ jobs:
 
       - run: make run-tests
 
-      - run: mkdir -p github.com/sudachen &&
-             ln -s $(pwd) github.com/sudachen/go-dnn &&
-             /usr/local/bin/cc-test-reporter after-build -t gocov -p $(basename $(go list -m))
+      - run: /usr/local/bin/cc-test-reporter after-build -t gocov
 
       - save_cache:
           key: v1-pkg-cache
