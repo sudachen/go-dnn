@@ -101,7 +101,7 @@ func compare(t *testing.T, data, result interface{}, dt mx.Dtype, no int) bool {
 func f_Array2(ctx mx.Context, t *testing.T) {
 	t.Logf("Array on %v", ctx)
 	for no, v := range array2_ds {
-		a := ctx.Array(v.Dtype, mx.Dim(5)).Init(v.vals)
+		a := ctx.Array(v.Dtype, mx.Dim(5), v.vals)
 		defer a.Release()
 		if v.Dtype == mx.Float16 && ctx.IsGPU() && a.Err() != nil {
 			t.Logf("Float16 is unsupported on GPU, skipped")
@@ -128,7 +128,7 @@ func Test_Array2(t *testing.T) {
 func Test_Array3(t *testing.T) {
 	var err error
 	ds := []int{1, 2, 3, 4, 5}
-	a := mx.CPU.Array(mx.Float16, mx.Dim(5)).Init(1, 2, 3, 4, 5)
+	a := mx.CPU.Array(mx.Float16, mx.Dim(5), 1, 2, 3, 4, 5)
 	defer a.Release()
 	assert.NilError(t, a.Err())
 	_, err = a.Values(mx.Float16)

@@ -6,12 +6,17 @@ import (
 
 type SymbolOp int
 
+const BinaryOpFlag SymbolOp = 0x100000
+
+const (
+	VarOp    SymbolOp = -1
+	InputOp  SymbolOp = -2
+	JsonOp   SymbolOp = -3
+	ScalarOp SymbolOp = -4
+)
+
 const (
 	NoneOp SymbolOp = iota
-	VarOp
-	InputOp
-	JsonOp
-	ScalarOp
 	AddOp
 	SubOp
 	MulOp
@@ -22,7 +27,7 @@ const (
 type Symbol struct {
 	op    SymbolOp
 	value string
-	l, r  *Symbol
+	args  []*Symbol
 }
 
 func (s *Symbol) String() string {
@@ -32,7 +37,7 @@ func (s *Symbol) String() string {
 
 type _input_ struct{}
 
-func Input(_input_) {}
+func Input(..._input_) *Symbol { return &Symbol{op: InputOp} }
 
 func JsonSymbol(json string) *Symbol {
 	return &Symbol{op: JsonOp, value: json}
@@ -50,6 +55,10 @@ func Mul(lv interface{}, rv interface{}) *Symbol {
 	return GenericOp2(MulOp, lv, rv)
 }
 
+func Div(lv interface{}, rv interface{}) *Symbol {
+	return GenericOp2(DivOp, lv, rv)
+}
+
 func Dot(lv interface{}, rv interface{}) *Symbol {
 	return GenericOp2(DotOp, lv, rv)
 }
@@ -61,7 +70,7 @@ func Var(name string) *Symbol {
 func SymbolCast(i interface{}) (*Symbol, error) {
 	var o *Symbol
 	switch v := i.(type) {
-	case func(_input_):
+	case func(..._input_):
 		o = &Symbol{op: InputOp}
 	case string:
 		o = Var(v)
@@ -85,5 +94,6 @@ func GenericOp2(op SymbolOp, lv interface{}, rv interface{}) *Symbol {
 	if r, err = SymbolCast(rv); err != nil {
 		panic(err.Error())
 	}
-	return &Symbol{op: op, l: l, r: r}
+	args := [2]*Symbol{l, r}
+	return &Symbol{op: op, args: args[:]}
 }

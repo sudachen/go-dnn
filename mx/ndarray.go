@@ -18,7 +18,7 @@ type NDArray struct {
 
 func release(a *NDArray) {
 	if a != nil {
-		internal.ReleaseNDArrayHandle(a.handle)
+		internal.ReleaseNDArry(a.handle)
 	}
 }
 
@@ -56,7 +56,7 @@ func (a *NDArray) errayf(s string, v ...interface{}) *NDArray {
 	return a
 }
 
-func (c Context) Array(tp Dtype, d Dimension) *NDArray {
+func (c Context) Array(tp Dtype, d Dimension, vals ...interface{}) *NDArray {
 	if !d.Good() {
 		return Errayf("failed to create array %v%v: bad dimension", tp.String(), d.String())
 	}
@@ -65,13 +65,20 @@ func (c Context) Array(tp Dtype, d Dimension) *NDArray {
 		return Errayf("failed to create array %v%v: api error", tp.String(), d.String())
 	} else {
 		a.handle = h
-		runtime.SetFinalizer(a, release)
 	}
+	if len(vals) > 0 {
+		err := a.SetValues(vals...)
+		if err != nil {
+			a.Release()
+			return &NDArray{err: err}
+		}
+	}
+	runtime.SetFinalizer(a, release)
 	return a
 }
 
 func (c Context) CopyAs(a *NDArray, dtype Dtype) *NDArray {
-	if a.handle == nil {
+	if a == nil || a.handle == nil {
 		return Errayf("can't copy broken array")
 	}
 	b := c.Array(dtype, a.dim)
@@ -151,36 +158,36 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 	return n, nil
 }
 
-func (a *NDArray) Init(vals ...interface{}) *NDArray {
-	if a.handle == nil {
-		return Errayf("can't initialize broken array")
+func (a *NDArray) SetValues(vals ...interface{}) error {
+	if a == nil || a.handle == nil {
+		return fmt.Errorf("can't initialize broken array")
 	}
 
 	if a.dtype == Float16 {
-		q := CPU.CopyAs(a, Float32).Init(vals...)
+		q := CPU.CopyAs(a, Float32)
 		defer q.Release()
-		if err := q.Err(); err != nil {
-			return a.erray(err)
+		if err := q.SetValues(vals...); err != nil {
+			return err
 		}
 		if err := internal.ImperativeInvokeInOut1(internal.OpCopyTo, q.handle, a.handle); err != nil {
-			return a.errayf("failed copy temporal Float32 array to Float16 target")
+			return fmt.Errorf("failed copy temporal Float32 array to Float16 target")
 		}
-		return a
+		return nil
 	}
 
 	dt, ok := typemap[a.dtype]
 	if !ok {
-		return a.errayf("initialization with dtype %v is unsupportd", a.dtype)
+		return fmt.Errorf("initialization with dtype %v is unsupportd", a.dtype)
 	}
 	s := reflect.MakeSlice(reflect.SliceOf(dt), a.dim.Total(), a.dim.Total())
 	if _, err := copyTo(s, 0, reflect.ValueOf(vals), dt); err != nil {
-		return a.erray(err)
+		return err
 	}
 	e := internal.SetNDArrayRawData(a.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), a.dim.Total())
 	if e != 0 {
-		return a.errayf("failed to initialize array with raw data")
+		return fmt.Errorf("failed to initialize array with raw data")
 	}
-	return a
+	return nil
 }
 
 func (a *NDArray) Raw() []byte {
