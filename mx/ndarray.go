@@ -109,6 +109,10 @@ func (a *NDArray) String() string {
 	return ""
 }
 
+func (a *NDArray) Depth() int {
+	return a.dim.Len
+}
+
 func (a *NDArray) Len(d int) int {
 	if d < 0 || d >= 3 {
 		return 0

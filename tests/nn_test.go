@@ -35,25 +35,31 @@ func Test_Lambda_Forward(t *testing.T) {
 		{0, 0, 0},
 	}
 
-	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Add(input, .3) }}
-	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3))
+	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Mul(input, 3) }}
+	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3), nn.L1Loss)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
+	assert.Assert(t, net.Graph.Output.Depth() == 2)
+	assert.Assert(t, net.Graph.Output.Len(0) == 1)
+	assert.Assert(t, net.Graph.Output.Len(1) == 3)
+
 	for n := 0; n < len(input); n++ {
-		err = net.Graph.Input.SetValues(input[0])
 		assert.NilError(t, err)
-		err = net.Predict()
+		r, err := net.Predict(input[n : n+1])
 		assert.NilError(t, err)
 		assert.Check(t, func() bool {
-			vals := net.Graph.Output.ValuesF32()
 			for i := 0; i < 3; i++ {
-				if vals[i] != output[0][i] {
+				if r[0][i] != output[n][i] {
+					t.Errorf("%v != %v", r[0], output[n])
 					return false
 				}
 			}
 			return true
 		}())
 	}
+}
+
+func Test_nn1(t *testing.T) {
 }

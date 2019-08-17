@@ -41,3 +41,5 @@ func (c Context) String() string {
 	}
 	return "InvalidContext"
 }
+
+var S = 1

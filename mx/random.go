@@ -13,3 +13,11 @@ func (a *NDArray) Uniform(low float32, high float32) *NDArray {
 	a.err = err
 	return a
 }
+
+func (a *NDArray) Zeros() *NDArray {
+	err := internal.ImperativeInvokeInplace1(
+		internal.OpZeros,
+		a.handle)
+	a.err = err
+	return a
+}

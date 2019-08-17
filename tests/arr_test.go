@@ -38,8 +38,8 @@ func f_Array1(ctx mx.Context, t *testing.T) {
 
 func Test_Array1(t *testing.T) {
 	f_Array1(mx.CPU, t)
-	for gno := 0; gno < mx.GpuCount(); gno++ {
-		f_Array1(mx.Gpu(gno), t)
+	if test_on_GPU {
+		f_Array1(mx.GPU0, t)
 	}
 }
 
@@ -120,8 +120,8 @@ func f_Array2(ctx mx.Context, t *testing.T) {
 
 func Test_Array2(t *testing.T) {
 	f_Array2(mx.CPU, t)
-	for gno := 0; gno < mx.GpuCount(); gno++ {
-		f_Array2(mx.Gpu(gno), t)
+	if test_on_GPU {
+		f_Array2(mx.GPU0, t)
 	}
 }
 
@@ -148,7 +148,7 @@ func f_Random(ctx mx.Context, t *testing.T) {
 
 func Test_Random(t *testing.T) {
 	f_Random(mx.CPU, t)
-	if mx.GpuCount() > 0 {
+	if test_on_GPU {
 		f_Random(mx.GPU0, t)
 	}
 }

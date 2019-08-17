@@ -11,22 +11,26 @@ const (
 	KeyRhs
 	KeyData
 	KeyNoKey
+	KeyExclude
+	KeyAxis
+	KeyNormalization
 )
 
+var keymap = map[MxnetKey]string{
+	KeyLow:           "low",
+	KeyHigh:          "high",
+	KeyScalar:        "scalar",
+	KeyLhs:           "lhs",
+	KeyRhs:           "rhs",
+	KeyData:          "data",
+	KeyExclude:       "excludd",
+	KeyAxis:          "axis",
+	KeyNormalization: "normalization",
+}
+
 func (k MxnetKey) Value() string {
-	switch k {
-	case KeyLow:
-		return "low"
-	case KeyHigh:
-		return "high"
-	case KeyScalar:
-		return "scalar"
-	case KeyLhs:
-		return "lhs"
-	case KeyRhs:
-		return "rhs"
-	case KeyData:
-		return "data"
+	if v, ok := keymap[k]; ok {
+		return v
 	}
 	panic("mxnet parameters key out of range")
 }
@@ -47,6 +51,12 @@ const (
 	OpDiv
 	OpDivScalar
 	OpDivScalarR
+	OpMean
+	OpAbs
+	OpGroup
+	OpBlockGrad
+	OpMakeLoss
+	OpZeros
 	OpNoOp
 )
 
@@ -63,6 +73,12 @@ var opmap = map[MxnetOp]string{
 	OpDiv:           "elemwise_div",
 	OpDivScalar:     "_div_scalar",
 	OpDivScalarR:    "_rdiv_scalar",
+	OpMean:          "mean",
+	OpAbs:           "abs",
+	OpGroup:         "group",
+	OpBlockGrad:     "BlockGrad",
+	OpMakeLoss:      "make_loss",
+	OpZeros:         "_zeros",
 }
 
 func (o MxnetOp) Value() string {
