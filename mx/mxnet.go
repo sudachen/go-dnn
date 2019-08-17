@@ -1,8 +1,6 @@
 package mx
 
-import (
-	"github.com/sudachen/go-dnn/mx/internal"
-)
+import "github.com/sudachen/go-dnn/mx/capi"
 
 const (
 	VersionMajor = 1
@@ -13,9 +11,9 @@ const (
 const Version VersionType = VersionMajor*10000 + VersionMinor*100 + VersionPatch
 
 func LibVersion() VersionType {
-	return VersionType(internal.LibVersion)
+	return VersionType(capi.LibVersion)
 }
 
 func GpuCount() int {
-	return internal.GpuCount
+	return capi.GpuCount
 }

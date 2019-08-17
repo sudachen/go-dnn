@@ -1,22 +1,20 @@
 package mx
 
-import (
-	"github.com/sudachen/go-dnn/mx/internal"
-)
+import "github.com/sudachen/go-dnn/mx/capi"
 
 func (a *NDArray) Uniform(low float32, high float32) *NDArray {
-	err := internal.ImperativeInvokeInplace1(
-		internal.OpRandomUniform,
+	err := capi.ImperativeInvokeInplace1(
+		capi.OpRandomUniform,
 		a.handle,
-		internal.KeyLow, low,
-		internal.KeyHigh, high)
+		capi.KeyLow, low,
+		capi.KeyHigh, high)
 	a.err = err
 	return a
 }
 
 func (a *NDArray) Zeros() *NDArray {
-	err := internal.ImperativeInvokeInplace1(
-		internal.OpZeros,
+	err := capi.ImperativeInvokeInplace1(
+		capi.OpZeros,
 		a.handle)
 	a.err = err
 	return a

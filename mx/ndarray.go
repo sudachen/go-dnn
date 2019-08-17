@@ -2,7 +2,7 @@ package mx
 
 import (
 	"fmt"
-	"github.com/sudachen/go-dnn/mx/internal"
+	"github.com/sudachen/go-dnn/mx/capi"
 	"reflect"
 	"runtime"
 	"unsafe"
@@ -12,13 +12,13 @@ type NDArray struct {
 	ctx    Context
 	dim    Dimension
 	dtype  Dtype
-	handle internal.NDArrayHandle
+	handle capi.NDArrayHandle
 	err    error
 }
 
 func release(a *NDArray) {
 	if a != nil {
-		internal.ReleaseNDArry(a.handle)
+		capi.ReleaseNDArry(a.handle)
 	}
 }
 
@@ -61,7 +61,7 @@ func (c Context) Array(tp Dtype, d Dimension, vals ...interface{}) *NDArray {
 		return Errayf("failed to create array %v%v: bad dimension", tp.String(), d.String())
 	}
 	a := &NDArray{ctx: c, dim: d, dtype: tp}
-	if h, e := internal.NewNDArrayHandle(c.DevType(), c.DevNo(), int(tp), d.Shape, d.Len); e != 0 {
+	if h, e := capi.NewNDArrayHandle(c.DevType(), c.DevNo(), int(tp), d.Shape, d.Len); e != 0 {
 		return Errayf("failed to create array %v%v: api error", tp.String(), d.String())
 	} else {
 		a.handle = h
@@ -82,7 +82,7 @@ func (c Context) CopyAs(a *NDArray, dtype Dtype) *NDArray {
 		return Errayf("can't copy broken array")
 	}
 	b := c.Array(dtype, a.dim)
-	if err := internal.ImperativeInvokeInOut1(internal.OpCopyTo, a.handle, b.handle); err != nil {
+	if err := capi.ImperativeInvokeInOut1(capi.OpCopyTo, a.handle, b.handle); err != nil {
 		b.Release()
 		return &NDArray{err: err}
 	}
@@ -180,7 +180,7 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 		if err := q.SetValues(vals...); err != nil {
 			return err
 		}
-		if err := internal.ImperativeInvokeInOut1(internal.OpCopyTo, q.handle, a.handle); err != nil {
+		if err := capi.ImperativeInvokeInOut1(capi.OpCopyTo, q.handle, a.handle); err != nil {
 			return fmt.Errorf("failed copy temporal Float32 array to Float16 target")
 		}
 		return nil
@@ -202,7 +202,7 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 		}
 	}
 
-	e := internal.SetNDArrayRawData(a.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), a.dim.Total())
+	e := capi.SetNDArrayRawData(a.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), a.dim.Total())
 	if e != 0 {
 		return fmt.Errorf("failed to initialize array with raw data")
 	}
@@ -212,7 +212,7 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 func (a *NDArray) Raw() []byte {
 	ln := a.dim.Total()
 	bs := make([]byte, ln)
-	internal.GetNDArrayRawData(a.handle, unsafe.Pointer(&bs[0]), ln)
+	capi.GetNDArrayRawData(a.handle, unsafe.Pointer(&bs[0]), ln)
 	return bs
 }
 
@@ -227,7 +227,7 @@ func (a *NDArray) Values(dtype Dtype) (interface{}, error) {
 		defer q.Release()
 	}
 	vals := reflect.MakeSlice(reflect.SliceOf(typemap[dtype]), ln, ln)
-	if e := internal.GetNDArrayRawData(q.handle, unsafe.Pointer(vals.Index(0).UnsafeAddr()), ln); e != 0 {
+	if e := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(vals.Index(0).UnsafeAddr()), ln); e != 0 {
 		return nil, fmt.Errorf("failed to copy raw data")
 	}
 	return vals.Interface(), nil

@@ -1,4 +1,4 @@
-package internal
+package capi
 
 type MxnetKey int
 

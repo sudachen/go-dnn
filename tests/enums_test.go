@@ -2,6 +2,7 @@ package tests
 
 import (
 	"github.com/sudachen/go-dnn/mx"
+	"github.com/sudachen/go-dnn/mx/capi"
 	"gotest.tools/assert"
 	"strings"
 	"testing"
@@ -32,5 +33,11 @@ func Test_Dtype(t *testing.T) {
 		assertPanic(t, func() { _ = mx.Dtype(100001).String() })
 		assertPanic(t, func() { _ = mx.Dtype(100001).Size() })
 	}
+}
+
+func Test_ApiEnums(t *testing.T) {
+	assertPanic(t, func(){ capi.OpEmpty.Value() })
+	assertPanic(t, func(){ capi.OpNoOp.Value() })
+	assertPanic(t, func(){ capi.KeyNoKey.Value() })
 }
 

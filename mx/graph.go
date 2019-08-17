@@ -2,7 +2,7 @@ package mx
 
 import (
 	"fmt"
-	"github.com/sudachen/go-dnn/mx/internal"
+	"github.com/sudachen/go-dnn/mx/capi"
 	"io"
 	"runtime"
 )
@@ -18,14 +18,14 @@ type Graph struct {
 	Label   *NDArray // loss function label
 	Params  map[string]*NDArray
 	Grads   []*NDArray // gradients
-	Vars    map[string]internal.SymbolHandle
-	Symbols map[*Symbol]internal.SymbolHandle
+	Vars    map[string]capi.SymbolHandle
+	Symbols map[*Symbol]capi.SymbolHandle
 
 	Autograd map[string]int // params required autograd (with index in Grads array)
 
-	Last internal.SymbolHandle // terminal symbol of network
-	Out  internal.SymbolHandle // terminal symbol to execute
-	Exec internal.ExecutorHandle
+	Last capi.SymbolHandle // terminal symbol of network
+	Out  capi.SymbolHandle // terminal symbol to execute
+	Exec capi.ExecutorHandle
 
 	Initializers map[string]VarInitializer
 }
@@ -33,7 +33,7 @@ type Graph struct {
 func (g *Graph) Release() {
 	g.Input.Release()
 	g.Label.Release()
-	internal.ReleaseExecutor(g.Exec)
+	capi.ReleaseExecutor(g.Exec)
 
 	for _, v := range g.Grads {
 		v.Release()
@@ -42,10 +42,10 @@ func (g *Graph) Release() {
 		v.Release()
 	}
 	for _, v := range g.Symbols {
-		internal.ReleaseSymbol(v)
+		capi.ReleaseSymbol(v)
 	}
 	for _, v := range g.Vars {
-		internal.ReleaseSymbol(v)
+		capi.ReleaseSymbol(v)
 	}
 }
 
@@ -80,11 +80,11 @@ func (g *Graph) bind(input Dimension) error {
 		shapes map[string][]int
 		err    error
 		names  []string
-		o      []internal.NDArrayHandle
+		o      []capi.NDArrayHandle
 		d      Dimension
 	)
 	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if shapes, err = internal.InferShapes(g.Last, x); err != nil {
+	if shapes, err = capi.InferShapes(g.Last, x); err != nil {
 		return err
 	}
 	if g.Input = g.Ctx.Array(g.Dtype, input); g.Input.Err() != nil {
@@ -96,18 +96,18 @@ func (g *Graph) bind(input Dimension) error {
 			return g.Label.Err()
 		}
 		x["_label"] = d.Shape[:d.Len]
-		if shapes, err = internal.InferShapes(g.Out, x); err != nil {
+		if shapes, err = capi.InferShapes(g.Out, x); err != nil {
 			return err
 		}
 	}
-	if names, err = internal.ListArguments(g.Out); err != nil {
+	if names, err = capi.ListArguments(g.Out); err != nil {
 		return err
 	}
 	if err = g.allocate(shapes); err != nil {
 		return err
 	}
-	args := make([]internal.NDArrayHandle, len(names))
-	grads := make([]internal.NDArrayHandle, len(names))
+	args := make([]capi.NDArrayHandle, len(names))
+	grads := make([]capi.NDArrayHandle, len(names))
 	for i, name := range names {
 		if name == "_input" {
 			args[i] = g.Input.handle
@@ -126,10 +126,10 @@ func (g *Graph) bind(input Dimension) error {
 			}
 		}
 	}
-	if g.Exec, err = internal.Bind(g.Out, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
+	if g.Exec, err = capi.Bind(g.Out, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
 		return err
 	}
-	if o, err = internal.GetOutputs(g.Exec); err != nil {
+	if o, err = capi.GetOutputs(g.Exec); err != nil {
 		return err
 	}
 	g.Output = &NDArray{handle: o[0], ctx: g.Ctx, dim: d, dtype: g.Dtype}
@@ -149,8 +149,8 @@ func Compose(
 		Ctx:          ctx,
 		Dtype:        dtype,
 		Params:       make(map[string]*NDArray),
-		Symbols:      make(map[*Symbol]internal.SymbolHandle),
-		Vars:         make(map[string]internal.SymbolHandle),
+		Symbols:      make(map[*Symbol]capi.SymbolHandle),
+		Vars:         make(map[string]capi.SymbolHandle),
 		Autograd:     make(map[string]int),
 		Initializers: make(map[string]VarInitializer),
 	}
@@ -186,7 +186,7 @@ func Compose(
 	return g, nil
 }
 
-func selectOp(s *Symbol, op, sop, sopR internal.MxnetOp) (internal.MxnetOp, string) {
+func selectOp(s *Symbol, op, sop, sopR capi.MxnetOp) (capi.MxnetOp, string) {
 	l, r := s.args[0], s.args[1]
 
 	if l != nil && l.op == ScalarOp {
@@ -200,51 +200,51 @@ func selectOp(s *Symbol, op, sop, sopR internal.MxnetOp) (internal.MxnetOp, stri
 	return op, ""
 }
 
-func mkCommonSymbol(s *Symbol) (internal.SymbolHandle, error) {
-	var mxnetop internal.MxnetOp
+func mkCommonSymbol(s *Symbol) (capi.SymbolHandle, error) {
+	var mxnetop capi.MxnetOp
 	switch s.op {
 	case MeanOp:
-		mxnetop = internal.OpMean
+		mxnetop = capi.OpMean
 	case AbsOp:
-		mxnetop = internal.OpAbs
+		mxnetop = capi.OpAbs
 	case BlockGradOp:
-		mxnetop = internal.OpBlockGrad
+		mxnetop = capi.OpBlockGrad
 	//case GroupOp: // handled directly by Graph.compose
 	case MakeLossOp:
-		mxnetop = internal.OpMakeLoss
+		mxnetop = capi.OpMakeLoss
 	default:
 		return nil, fmt.Errorf("unexpected symbol")
 	}
-	h, err := internal.NewSymbol(mxnetop, s.attr)
+	h, err := capi.NewSymbol(mxnetop, s.attr)
 	if err != nil {
 		return nil, err
 	}
 	return h, nil
 }
 
-func mkBinarySymbol(s *Symbol) (internal.SymbolHandle, error) {
-	var mxnetop internal.MxnetOp
+func mkBinarySymbol(s *Symbol) (capi.SymbolHandle, error) {
+	var mxnetop capi.MxnetOp
 	var scalar string
 	switch s.op {
 	case AddOp:
-		mxnetop, scalar = selectOp(s, internal.OpAdd, internal.OpAddScalar, internal.OpAddScalar)
+		mxnetop, scalar = selectOp(s, capi.OpAdd, capi.OpAddScalar, capi.OpAddScalar)
 	case SubOp:
-		mxnetop, scalar = selectOp(s, internal.OpSub, internal.OpSubScalar, internal.OpSubScalarR)
+		mxnetop, scalar = selectOp(s, capi.OpSub, capi.OpSubScalar, capi.OpSubScalarR)
 	case MulOp:
-		mxnetop, scalar = selectOp(s, internal.OpMul, internal.OpMulScalar, internal.OpMulScalar)
+		mxnetop, scalar = selectOp(s, capi.OpMul, capi.OpMulScalar, capi.OpMulScalar)
 	case DivOp:
-		mxnetop, scalar = selectOp(s, internal.OpDiv, internal.OpDivScalar, internal.OpDivScalarR)
+		mxnetop, scalar = selectOp(s, capi.OpDiv, capi.OpDivScalar, capi.OpDivScalarR)
 	default:
 		return nil, fmt.Errorf("unexpected symbol")
 	}
 	var (
-		h   internal.SymbolHandle
+		h   capi.SymbolHandle
 		err error
 	)
 	if scalar != "" {
-		h, err = internal.NewSymbol(mxnetop, nil, internal.KeyScalar, scalar)
+		h, err = capi.NewSymbol(mxnetop, nil, capi.KeyScalar, scalar)
 	} else {
-		h, err = internal.NewSymbol(mxnetop, nil)
+		h, err = capi.NewSymbol(mxnetop, nil)
 	}
 	if err != nil {
 		return nil, err
@@ -252,14 +252,14 @@ func mkBinarySymbol(s *Symbol) (internal.SymbolHandle, error) {
 	return h, nil
 }
 
-var opmap = map[SymbolOp]func(*Symbol) (internal.SymbolHandle, error){
+var opmap = map[SymbolOp]func(*Symbol) (capi.SymbolHandle, error){
 	AddOp: mkBinarySymbol,
 	SubOp: mkBinarySymbol,
 	MulOp: mkBinarySymbol,
 	DivOp: mkBinarySymbol,
 }
 
-func mkSymbol(s *Symbol) (internal.SymbolHandle, error) {
+func mkSymbol(s *Symbol) (capi.SymbolHandle, error) {
 	if f, ok := opmap[s.op]; ok {
 		return f(s)
 	} else {
@@ -267,10 +267,10 @@ func mkSymbol(s *Symbol) (internal.SymbolHandle, error) {
 	}
 }
 
-func (g *Graph) subcompose(s *Symbol, ns string) ([]internal.SymbolHandle, error) {
+func (g *Graph) subcompose(s *Symbol, ns string) ([]capi.SymbolHandle, error) {
 	var err error
-	var h internal.SymbolHandle
-	var a []internal.SymbolHandle
+	var h capi.SymbolHandle
+	var a []capi.SymbolHandle
 
 	for _, v := range s.args {
 		if h, err = g.compose(v, ns); err != nil {
@@ -284,7 +284,7 @@ func (g *Graph) subcompose(s *Symbol, ns string) ([]internal.SymbolHandle, error
 	return a, nil
 }
 
-func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
+func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 
 	if h, ok := g.Symbols[s]; ok {
 		return h, nil
@@ -303,7 +303,7 @@ func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
 		if v, ok := g.Vars[n]; ok {
 			return v, nil
 		}
-		h, e := internal.CreateVariable(n)
+		h, e := capi.CreateVariable(n)
 		if e != 0 {
 			return nil, fmt.Errorf("failed to create mxnet variable")
 		}
@@ -328,8 +328,8 @@ func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
 	}
 
 	var err error
-	var op internal.SymbolHandle
-	var a []internal.SymbolHandle
+	var op capi.SymbolHandle
+	var a []capi.SymbolHandle
 
 	a, err = g.subcompose(s, ns)
 	if err != nil {
@@ -338,7 +338,7 @@ func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
 
 	if s.op == GroupOp {
 
-		if op, err = internal.GroupSymbols(a); err != nil {
+		if op, err = capi.GroupSymbols(a); err != nil {
 			return nil, err
 		}
 
@@ -354,7 +354,7 @@ func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
 
 		name := fmt.Sprintf("%ssym%d", ns, len(g.Symbols))
 
-		if err := internal.ComposeSymbol(op, name, a...); err != nil {
+		if err := capi.ComposeSymbol(op, name, a...); err != nil {
 			return nil, err
 		}
 	}
@@ -363,5 +363,5 @@ func (g *Graph) compose(s *Symbol, ns string) (internal.SymbolHandle, error) {
 }
 
 func (g *Graph) Forward(train bool) error {
-	return internal.Forward(g.Exec, train)
+	return capi.Forward(g.Exec, train)
 }

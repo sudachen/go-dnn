@@ -2,7 +2,7 @@ package mx
 
 import (
 	"fmt"
-	"github.com/sudachen/go-dnn/mx/internal"
+	"github.com/sudachen/go-dnn/mx/capi"
 )
 
 type SymbolOp int
@@ -39,7 +39,7 @@ type Symbol struct {
 	value string
 	args  []*Symbol
 	init  VarInitializer
-	attr  map[internal.MxnetKey]string
+	attr  map[capi.MxnetKey]string
 }
 
 func (s *Symbol) String() string {
@@ -123,9 +123,9 @@ func Mean(a *Symbol) *Symbol {
 	return &Symbol{
 		op:   MeanOp,
 		args: []*Symbol{a},
-		attr: map[internal.MxnetKey]string{
-			internal.KeyExclude: "1",
-			internal.KeyAxis:    "0",
+		attr: map[capi.MxnetKey]string{
+			capi.KeyExclude: "1",
+			capi.KeyAxis:    "0",
 		},
 	}
 }

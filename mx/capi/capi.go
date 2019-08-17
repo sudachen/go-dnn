@@ -1,4 +1,4 @@
-package internal
+package capi
 
 /*
 #cgo CFLAGS: -I/opt/mxnet/include
