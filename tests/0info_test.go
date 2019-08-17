@@ -21,7 +21,6 @@ func Test_0info(t *testing.T) {
 
 func assertPanic(t *testing.T, f func()) {
 	defer func() {
-		assert.Assert(t, recover() != nil, "The code did not panic")
-	}()
+		assert.Assert(t, recover() != nil, "The code did not panic")}()
 	f()
 }

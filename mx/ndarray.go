@@ -142,8 +142,8 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 		v0 = v0.Elem()
 	}
 	if v0.Kind() == reflect.Slice || v0.Kind() == reflect.Array {
-		if v0.Type() == reflect.SliceOf(dt) && s.Len() - n >= v0.Len() {
-			n += reflect.Copy(s.Slice(n,s.Len()),v0)
+		if v0.Type() == reflect.SliceOf(dt) && s.Len()-n >= v0.Len() {
+			n += reflect.Copy(s.Slice(n, s.Len()), v0)
 		} else {
 			for i := 0; i < v0.Len(); i++ {
 				n, err = copyTo(s, n, v0.Index(i), dt)
@@ -193,7 +193,7 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 
 	s := reflect.ValueOf(vals[0])
 
-	if len(vals)!=1 || s.Type() != reflect.SliceOf(dt) || s.Len() != a.dim.Total() {
+	if len(vals) != 1 || s.Type() != reflect.SliceOf(dt) || s.Len() != a.dim.Total() {
 		s = reflect.MakeSlice(reflect.SliceOf(dt), a.dim.Total(), a.dim.Total())
 		if n, err := copyTo(s, 0, reflect.ValueOf(vals), dt); err != nil {
 			return err
