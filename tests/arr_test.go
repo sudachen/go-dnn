@@ -198,9 +198,9 @@ func Test_Context(t *testing.T) {
 	assert.Assert(t, a.Err() != nil )
 	assert.Assert(t, c.String() == "NullContext")
 	c = mx.GPU0
-	assert.Assert(t, strings.Index(c.String(),"GPU") == 0)
+	assert.Assert(t, c == mx.NullContext || strings.Index(c.String(),"GPU") == 0)
 	c = mx.Gpu(0)
-	assert.Assert(t, strings.Index(c.String(),"GPU") == 0)
+	assert.Assert(t, c == mx.NullContext || strings.Index(c.String(),"GPU") == 0)
 	assert.Assert(t, c == mx.GPU0 || c == mx.NullContext )
 	c = mx.Gpu(1)
 	assert.Assert(t, c == mx.GPU1 || c == mx.NullContext )
