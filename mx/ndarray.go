@@ -142,10 +142,14 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 		v0 = v0.Elem()
 	}
 	if v0.Kind() == reflect.Slice || v0.Kind() == reflect.Array {
-		for i := 0; i < v0.Len(); i++ {
-			n, err = copyTo(s, n, v0.Index(i), dt)
-			if err != nil {
-				return 0, err
+		if v0.Type() == reflect.SliceOf(dt) && s.Len() - n >= v0.Len() {
+			n += reflect.Copy(s.Slice(n,s.Len()),v0)
+		} else {
+			for i := 0; i < v0.Len(); i++ {
+				n, err = copyTo(s, n, v0.Index(i), dt)
+				if err != nil {
+					return 0, err
+				}
 			}
 		}
 	} else {
@@ -153,6 +157,9 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 		case reflect.Int, reflect.Int8, reflect.Uint8, reflect.Int16, reflect.Uint16,
 			reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64,
 			reflect.Float32, reflect.Float64:
+			if s.Len() <= n {
+				return 0, fmt.Errorf("too many elements to copy")
+			}
 			s.Index(n).Set(v0.Convert(dt))
 			n++
 		default:
@@ -183,10 +190,18 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 	if !ok {
 		return fmt.Errorf("initialization with dtype %v is unsupportd", a.dtype)
 	}
-	s := reflect.MakeSlice(reflect.SliceOf(dt), a.dim.Total(), a.dim.Total())
-	if _, err := copyTo(s, 0, reflect.ValueOf(vals), dt); err != nil {
-		return err
+
+	s := reflect.ValueOf(vals[0])
+
+	if len(vals)!=1 || s.Type() != reflect.SliceOf(dt) || s.Len() != a.dim.Total() {
+		s = reflect.MakeSlice(reflect.SliceOf(dt), a.dim.Total(), a.dim.Total())
+		if n, err := copyTo(s, 0, reflect.ValueOf(vals), dt); err != nil {
+			return err
+		} else if n != a.dim.Total() {
+			return fmt.Errorf("not enough elements to set value")
+		}
 	}
+
 	e := internal.SetNDArrayRawData(a.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), a.dim.Total())
 	if e != 0 {
 		return fmt.Errorf("failed to initialize array with raw data")

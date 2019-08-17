@@ -47,7 +47,7 @@ func Test_Lambda_Forward(t *testing.T) {
 
 	for n := 0; n < len(input); n++ {
 		assert.NilError(t, err)
-		r, err := net.Predict(input[n : n+1])
+		r, err := net.Predict(input[n:n+1])
 		assert.NilError(t, err)
 		assert.Check(t, func() bool {
 			for i := 0; i < 3; i++ {

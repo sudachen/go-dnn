@@ -2,6 +2,7 @@ package tests
 
 import (
 	"github.com/sudachen/go-dnn/mx"
+	"gotest.tools/assert"
 	"testing"
 )
 
@@ -16,4 +17,11 @@ func Test_0info(t *testing.T) {
 		s = " not"
 	}
 	t.Logf("will%s test on GPU", s)
+}
+
+func assertPanic(t *testing.T, f func()) {
+	defer func() {
+		assert.Assert(t, recover() != nil, "The code did not panic")
+	}()
+	f()
 }

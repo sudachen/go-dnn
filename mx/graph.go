@@ -7,7 +7,7 @@ import (
 	"runtime"
 )
 
-type Loss func(*Symbol, *Symbol, ...Loss) *Symbol
+type Loss = func(*Symbol, *Symbol) *Symbol
 
 type Graph struct {
 	Ctx   Context

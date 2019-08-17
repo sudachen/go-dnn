@@ -11,21 +11,11 @@ func (n *Network) Release() {
 	n.Graph.Release()
 }
 
-func getLoss(opts ...interface{}) mx.Loss {
-	for _, o := range opts {
-		if loss, ok := o.(func(*mx.Symbol,*mx.Symbol,...mx.Loss)*mx.Symbol); ok {
-			return loss
-		}
-	}
-	return nil
-}
-
-func Bind(ctx mx.Context, nb Block, input mx.Dimension, opts ...interface{}) (*Network, error) {
+func Bind(ctx mx.Context, nb Block, input mx.Dimension, loss mx.Loss) (*Network, error) {
 	sym, err := nb.Combine(mx.Input())
 	if err != nil {
 		return nil, err
 	}
-	loss := getLoss(opts...)
 	g, err := mx.Compose(ctx, sym, loss, input, mx.Float32)
 	if err != nil {
 		return nil, err
