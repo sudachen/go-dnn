@@ -35,7 +35,7 @@ func Test_Lambda_Forward(t *testing.T) {
 		{0, 0, 0},
 	}
 
-	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Mul(input, 3) }}
+	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Ns("ns",mx.Mul(input, 3)) }}
 	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3), nn.L1Loss)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
