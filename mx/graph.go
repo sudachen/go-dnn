@@ -209,8 +209,7 @@ func mkCommonSymbol(s *Symbol) (internal.SymbolHandle, error) {
 		mxnetop = internal.OpAbs
 	case BlockGradOp:
 		mxnetop = internal.OpBlockGrad
-	case GroupOp:
-		mxnetop = internal.OpGroup
+	//case GroupOp: // handled directly by Graph.compose
 	case MakeLossOp:
 		mxnetop = internal.OpMakeLoss
 	default:

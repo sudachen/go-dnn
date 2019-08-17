@@ -11,9 +11,9 @@ func (n *Network) Release() {
 	n.Graph.Release()
 }
 
-func getLoss(opts ...interface{}) Loss {
+func getLoss(opts ...interface{}) mx.Loss {
 	for _, o := range opts {
-		if loss, ok := o.(Loss); ok {
+		if loss, ok := o.(func(*mx.Symbol,*mx.Symbol,...mx.Loss)*mx.Symbol); ok {
 			return loss
 		}
 	}

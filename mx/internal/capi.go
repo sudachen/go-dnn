@@ -217,10 +217,12 @@ func NewSymbol(op MxnetOp, attr map[MxnetKey]string, a ...interface{}) (SymbolHa
 	}
 
 	i := fillargs(keys[:], vals[:], a)
-	for k, v := range attr {
-		keys[i] = mxkeys[k]
-		vals[i] = C.CString(fmt.Sprint(v))
-		i++
+	if attr != nil {
+		for k, v := range attr {
+			keys[i] = mxkeys[k]
+			vals[i] = C.CString(v)
+			i++
+		}
 	}
 
 	defer func() {

@@ -10,10 +10,10 @@ const (
 	KeyLhs
 	KeyRhs
 	KeyData
-	KeyNoKey
 	KeyExclude
 	KeyAxis
 	KeyNormalization
+	KeyNoKey
 )
 
 var keymap = map[MxnetKey]string{
@@ -23,7 +23,7 @@ var keymap = map[MxnetKey]string{
 	KeyLhs:           "lhs",
 	KeyRhs:           "rhs",
 	KeyData:          "data",
-	KeyExclude:       "excludd",
+	KeyExclude:       "exclude",
 	KeyAxis:          "axis",
 	KeyNormalization: "normalization",
 }
