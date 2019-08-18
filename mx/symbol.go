@@ -30,6 +30,7 @@ const (
 	GroupOp
 	MakeLossOp
 	BlockGradOp
+	PowOp
 )
 
 type VarInitializer = func(*NDArray) error
@@ -86,7 +87,7 @@ func Dot(lv interface{}, rv interface{}) *Symbol {
 func Var(name string, opt ...interface{}) *Symbol {
 	s := &Symbol{op: VarOp, value: name}
 	for _, t := range opt {
-		if init, ok := t.(VarInitializer); ok {
+		if init, ok := t.(func(*NDArray) error); ok {
 			s.init = init
 		}
 		if _, ok := t.(func(_hidden_autograd_)); ok {
@@ -106,6 +107,10 @@ func MakeLoss(s *Symbol) *Symbol {
 
 func BlockGrad(s *Symbol) *Symbol {
 	return &Symbol{op: BlockGradOp, args: []*Symbol{s}}
+}
+
+func Pow(s *Symbol, rv interface{}) *Symbol {
+	return GenericOp2(PowOp, s, rv)
 }
 
 //func ReshapeLike(a *Symbol, b *Symbol) *Symbol {
@@ -136,7 +141,7 @@ func SymbolCast(i interface{}) (*Symbol, error) {
 	case func(..._hidden_input_):
 		o = &Symbol{op: InputOp}
 	case string:
-		o = Var(v, nil)
+		o = Var(v)
 	case *Symbol:
 		o = v
 	case float32, float64, int, int8, int32, int64, uint, uint8, uint32, uint64:
@@ -145,7 +150,7 @@ func SymbolCast(i interface{}) (*Symbol, error) {
 	if o != nil {
 		return o, nil
 	}
-	return nil, fmt.Errorf("cant cast '%#v' to *Operation", i)
+	return nil, fmt.Errorf("cant cast '%#v' to *Symbol", i)
 }
 
 func GenericOp2(op SymbolOp, lv interface{}, rv interface{}) *Symbol {

@@ -14,6 +14,7 @@ run-tests:
 	go test -covermode=atomic -coverprofile=c.out -coverpkg=./... ./...
 	cp c.out gocov.txt
 	sed -i -e 's:github.com/sudachen/go-dnn/::g' c.out
+	rm github.com/sudachen/go-dnn
 
 run-cover:
 	go tool cover -html=gocov.txt

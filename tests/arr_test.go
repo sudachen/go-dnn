@@ -190,4 +190,3 @@ func Test_SetValues(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, compare(t, a.ValuesF32(), []float32{9, 8, 7, 6, 5, 4}, mx.Float32, 0))
 }
-

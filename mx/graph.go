@@ -3,50 +3,60 @@ package mx
 import (
 	"fmt"
 	"github.com/sudachen/go-dnn/mx/capi"
+	"github.com/sudachen/go-extra/fu"
 	"io"
 	"runtime"
 )
 
 type Loss = func(*Symbol, *Symbol) *Symbol
 
+type Param struct {
+	Data     *NDArray
+	Grad     *NDArray
+	Autograd bool
+}
+
 type Graph struct {
 	Ctx   Context
 	Dtype Dtype
 
-	Input   *NDArray // network input
-	Output  *NDArray // referencing to executor outputs[0]
-	Label   *NDArray // loss function label
-	Params  map[string]*NDArray
-	Grads   []*NDArray // gradients
-	Vars    map[string]capi.SymbolHandle
-	Symbols map[*Symbol]capi.SymbolHandle
+	Input   *NDArray   // network input
+	Outputs []*NDArray // referencing to executor outputs except loss
+	Loss    *NDArray   // referencing to last executor output
+	Label   *NDArray   // loss function label
+	Params  map[string]Param
 
-	Autograd map[string]int // params required autograd (with index in Grads array)
-
-	Last capi.SymbolHandle // terminal symbol of network
-	Out  capi.SymbolHandle // terminal symbol to execute
-	Exec capi.ExecutorHandle
-
+	Exec         capi.ExecutorHandle
 	Initializers map[string]VarInitializer
+
+	vars    map[string]capi.SymbolHandle
+	symbols map[*Symbol]capi.SymbolHandle
+}
+
+func (g *Graph) symRelease() {
+	for _, v := range g.symbols {
+		capi.ReleaseSymbol(v)
+	}
+	g.symbols = nil
+	for _, v := range g.vars {
+		capi.ReleaseSymbol(v)
+	}
+	g.vars = nil
 }
 
 func (g *Graph) Release() {
+	g.symRelease()
 	g.Input.Release()
 	g.Label.Release()
-	capi.ReleaseExecutor(g.Exec)
 
-	for _, v := range g.Grads {
-		v.Release()
-	}
+	capi.ReleaseExecutor(g.Exec)
+	g.Exec = nil
+
 	for _, v := range g.Params {
-		v.Release()
+		v.Data.Release()
+		v.Grad.Release()
 	}
-	for _, v := range g.Symbols {
-		capi.ReleaseSymbol(v)
-	}
-	for _, v := range g.Vars {
-		capi.ReleaseSymbol(v)
-	}
+	g.Params = nil
 }
 
 func (g *Graph) Close() error {
@@ -64,48 +74,54 @@ func (g *Graph) SaveParams(writer io.Writer) error {
 
 func (g *Graph) allocate(shapes map[string][]int) error {
 	for n, s := range shapes {
-		if _, ok := g.Params[n]; !ok && n != "_output" {
-			a := g.Ctx.Array(g.Dtype, Dim(s...))
-			if a.Err() != nil {
-				return a.Err()
+		if n != "_output" && n != "_label" && n != "_input" {
+			p, ok := g.Params[n]
+			if !ok || p.Data == nil {
+				a := g.Ctx.Array(g.Dtype, Dim(s...)).Zeros()
+				if a.Err() != nil {
+					return a.Err()
+				}
+				p.Data = a
+				g.Params[n] = p
 			}
-			g.Params[n] = a
 		}
 	}
 	return nil
 }
 
-func (g *Graph) bind(input Dimension) error {
+func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
 	var (
 		shapes map[string][]int
 		err    error
 		names  []string
-		o      []capi.NDArrayHandle
+		o      []capi.NDArrayInfo
 		d      Dimension
 	)
 	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if shapes, err = capi.InferShapes(g.Last, x); err != nil {
+	if shapes, err = capi.InferShapes(last, x); err != nil {
 		return err
 	}
 	if g.Input = g.Ctx.Array(g.Dtype, input); g.Input.Err() != nil {
 		return g.Input.Err()
 	}
-	d = Dim(shapes["_output"]...)
-	if g.Last != g.Out {
+	if names, err = capi.ListArguments(out); err != nil {
+		return err
+	}
+	if last != out && fu.Contains(names, "_label") {
+		d = Dim(shapes["_output"]...)
 		if g.Label = g.Ctx.Array(g.Dtype, d); g.Label.Err() != nil {
 			return g.Label.Err()
 		}
 		x["_label"] = d.Shape[:d.Len]
-		if shapes, err = capi.InferShapes(g.Out, x); err != nil {
+		if shapes, err = capi.InferShapes(out, x); err != nil {
 			return err
 		}
 	}
-	if names, err = capi.ListArguments(g.Out); err != nil {
-		return err
-	}
+
 	if err = g.allocate(shapes); err != nil {
 		return err
 	}
+
 	args := make([]capi.NDArrayHandle, len(names))
 	grads := make([]capi.NDArrayHandle, len(names))
 	for i, name := range names {
@@ -114,25 +130,38 @@ func (g *Graph) bind(input Dimension) error {
 		} else if name == "_label" {
 			args[i] = g.Label.handle
 		} else {
-			args[i] = g.Params[name].handle
-			if g.Last != g.Out && g.Autograd[name] == 1 {
-				a := g.Ctx.Array(g.Dtype, g.Params[name].Dim())
+			p := g.Params[name]
+			args[i] = p.Data.handle
+			if last != out && p.Autograd {
+				a := g.Ctx.Array(g.Dtype, p.Data.Dim())
 				if a.Err() != nil {
 					return a.Err()
 				}
-				g.Grads = append(g.Grads, a)
+				p.Grad = a
 				grads[i] = a.handle
 				a.Zeros()
+				g.Params[name] = p
 			}
 		}
 	}
-	if g.Exec, err = capi.Bind(g.Out, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
+
+	if g.Exec, err = capi.Bind(out, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
 		return err
 	}
+	g.symRelease() // symbols are not necessary more
+
 	if o, err = capi.GetOutputs(g.Exec); err != nil {
 		return err
 	}
-	g.Output = &NDArray{handle: o[0], ctx: g.Ctx, dim: d, dtype: g.Dtype}
+
+	g.Outputs = make([]*NDArray, len(o))
+	for i, v := range o {
+		g.Outputs[i] = &NDArray{handle: v.Handle, ctx: g.Ctx, dim: Dim(v.Dim...), dtype: Dtype(v.Type)}
+	}
+	if last != out {
+		g.Loss = g.Outputs[len(o)-1]
+		g.Outputs = g.Outputs[:len(o)-1]
+	}
 	return nil
 }
 
@@ -143,24 +172,27 @@ func Compose(
 	input Dimension,
 	dtype Dtype) (*Graph, error) {
 
-	var err error
+	var (
+		err  error
+		last capi.SymbolHandle
+		out  capi.SymbolHandle
+	)
 
 	g := &Graph{
 		Ctx:          ctx,
 		Dtype:        dtype,
-		Params:       make(map[string]*NDArray),
-		Symbols:      make(map[*Symbol]capi.SymbolHandle),
-		Vars:         make(map[string]capi.SymbolHandle),
-		Autograd:     make(map[string]int),
+		Params:       make(map[string]Param),
+		symbols:      make(map[*Symbol]capi.SymbolHandle),
+		vars:         make(map[string]capi.SymbolHandle),
 		Initializers: make(map[string]VarInitializer),
 	}
 
-	if _, err = g.compose(Var("_input", nil), ""); err != nil {
+	if _, err = g.compose(Var("_input"), ""); err != nil {
 		g.Release()
 		return nil, err
 	}
 
-	if g.Last, err = g.compose(sym, ""); err != nil {
+	if last, err = g.compose(sym, ""); err != nil {
 		g.Release()
 		return nil, err
 	}
@@ -168,16 +200,16 @@ func Compose(
 	if symloss != nil {
 		loss := Group(
 			MakeLoss(BlockGrad(sym)),
-			MakeLoss(symloss(sym, Var("_label", nil))))
-		if g.Out, err = g.compose(loss, ""); err != nil {
+			MakeLoss(symloss(sym, Var("_label"))))
+		if out, err = g.compose(loss, ""); err != nil {
 			g.Release()
 			return nil, err
 		}
 	} else {
-		g.Out = g.Last
+		out = last
 	}
 
-	if err = g.bind(input); err != nil {
+	if err = g.bind(input, out, last); err != nil {
 		g.Release()
 		return nil, err
 	}
@@ -234,6 +266,8 @@ func mkBinarySymbol(s *Symbol) (capi.SymbolHandle, error) {
 		mxnetop, scalar = selectOp(s, capi.OpMul, capi.OpMulScalar, capi.OpMulScalar)
 	case DivOp:
 		mxnetop, scalar = selectOp(s, capi.OpDiv, capi.OpDivScalar, capi.OpDivScalarR)
+	case PowOp:
+		mxnetop, scalar = selectOp(s, capi.OpNoOp, capi.OpPowerScalar, capi.OpPowerScalarR)
 	default:
 		return nil, fmt.Errorf("unexpected symbol")
 	}
@@ -257,6 +291,7 @@ var opmap = map[SymbolOp]func(*Symbol) (capi.SymbolHandle, error){
 	SubOp: mkBinarySymbol,
 	MulOp: mkBinarySymbol,
 	DivOp: mkBinarySymbol,
+	PowOp: mkBinarySymbol,
 }
 
 func mkSymbol(s *Symbol) (capi.SymbolHandle, error) {
@@ -286,13 +321,13 @@ func (g *Graph) subcompose(s *Symbol, ns string) ([]capi.SymbolHandle, error) {
 
 func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 
-	if h, ok := g.Symbols[s]; ok {
+	if h, ok := g.symbols[s]; ok {
 		return h, nil
 	}
 
 	switch s.op {
 	case InputOp:
-		return g.Vars["_input"], nil
+		return g.vars["_input"], nil
 	case ScalarOp:
 		return nil, nil
 	case VarOp, AgVarOp:
@@ -300,19 +335,21 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 		if len(n) > 1 && n[0] != '_' {
 			n = ns + n
 		}
-		if v, ok := g.Vars[n]; ok {
+		if v, ok := g.vars[n]; ok {
 			return v, nil
 		}
 		h, e := capi.CreateVariable(n)
 		if e != 0 {
 			return nil, fmt.Errorf("failed to create mxnet variable")
 		}
-		g.Vars[n] = h
+		g.vars[n] = h
 		if s.init != nil {
 			g.Initializers[n] = s.init
 		}
 		if s.op == AgVarOp {
-			g.Autograd[n] = 1 // write gradient ( other options 'null':0, 'add':2 )
+			p := g.Params[n]
+			p.Autograd = true
+			g.Params[n] = p
 		}
 		return h, nil
 	case NsOp:
@@ -342,7 +379,7 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 			return nil, err
 		}
 
-		g.Symbols[s] = op
+		g.symbols[s] = op
 
 	} else {
 
@@ -350,9 +387,9 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 			return nil, err
 		}
 
-		g.Symbols[s] = op
+		g.symbols[s] = op
 
-		name := fmt.Sprintf("%ssym%d", ns, len(g.Symbols))
+		name := fmt.Sprintf("%ssym%d", ns, len(g.symbols))
 
 		if err := capi.ComposeSymbol(op, name, a...); err != nil {
 			return nil, err
@@ -364,4 +401,8 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 
 func (g *Graph) Forward(train bool) error {
 	return capi.Forward(g.Exec, train)
+}
+
+func (g *Graph) Backward() error {
+	return capi.Backward(g.Exec)
 }

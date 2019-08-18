@@ -36,14 +36,14 @@ func Test_Lambda_Forward(t *testing.T) {
 	}
 
 	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Ns("ns", mx.Mul(input, 3)) }}
-	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3), nn.L1Loss)
+	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3), nil)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
-	assert.Assert(t, net.Graph.Output.Depth() == 2)
-	assert.Assert(t, net.Graph.Output.Len(0) == 1)
-	assert.Assert(t, net.Graph.Output.Len(1) == 3)
+	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
+	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
+	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 3)
 
 	for n := 0; n < len(input); n++ {
 		assert.NilError(t, err)
@@ -62,4 +62,33 @@ func Test_Lambda_Forward(t *testing.T) {
 }
 
 func Test_nn1(t *testing.T) {
+	f := func(x *mx.Symbol) *mx.Symbol { return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd)), 2) }
+	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), &nn.SGD{Loss: nn.L1Loss})
+	assert.NilError(t, err)
+	assert.Assert(t, net != nil)
+	defer net.Release()
+
+	input := []float32{3, 3}
+	label := []float32{0, 0}
+
+	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
+	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
+	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
+
+	for n := 0; n < 100; n++ {
+		assert.NilError(t, err)
+		err := net.Train(input, label)
+		assert.NilError(t, err)
+		if net.Graph.Loss.ValuesF32()[0] < 0.01 {
+			t.Logf("%d %v %v %v %v", n,
+				net.Graph.Loss.ValuesF32(),
+				net.Graph.Outputs[0].ValuesF32(),
+				net.Graph.Params["_offset"].Data.ValuesF32(),
+				net.Graph.Params["_offset"].Grad.ValuesF32())
+			break
+		}
+	}
+
+	v := net.Graph.Params["_offset"].Data.ValuesF32()
+	assert.Assert(t, v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1)
 }

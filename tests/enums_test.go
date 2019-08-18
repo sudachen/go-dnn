@@ -36,8 +36,7 @@ func Test_Dtype(t *testing.T) {
 }
 
 func Test_ApiEnums(t *testing.T) {
-	assertPanic(t, func(){ capi.OpEmpty.Value() })
-	assertPanic(t, func(){ capi.OpNoOp.Value() })
-	assertPanic(t, func(){ capi.KeyNoKey.Value() })
+	assertPanic(t, func() { capi.OpEmpty.Value() })
+	assertPanic(t, func() { capi.OpNoOp.Value() })
+	assertPanic(t, func() { capi.KeyNoKey.Value() })
 }
-

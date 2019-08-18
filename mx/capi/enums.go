@@ -13,6 +13,9 @@ const (
 	KeyExclude
 	KeyAxis
 	KeyNormalization
+	KeyLr
+	KeyMomentum
+	KeyWd
 	KeyNoKey
 )
 
@@ -25,6 +28,9 @@ var keymap = map[MxnetKey]string{
 	KeyData:          "data",
 	KeyExclude:       "exclude",
 	KeyAxis:          "axis",
+	KeyLr:            "lr",
+	KeyMomentum:      "momentum",
+	KeyWd:            "wd",
 	KeyNormalization: "normalization",
 }
 
@@ -57,6 +63,9 @@ const (
 	OpBlockGrad
 	OpMakeLoss
 	OpZeros
+	OpPowerScalar
+	OpPowerScalarR
+	OpSgdUpdate
 	OpNoOp
 )
 
@@ -79,6 +88,9 @@ var opmap = map[MxnetOp]string{
 	OpBlockGrad:     "BlockGrad",
 	OpMakeLoss:      "make_loss",
 	OpZeros:         "_zeros",
+	OpPowerScalar:   "_power_scalar",
+	OpPowerScalarR:  "_rpower_scalar",
+	OpSgdUpdate:     "sgd_mom_update",
 }
 
 func (o MxnetOp) Value() string {

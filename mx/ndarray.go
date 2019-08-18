@@ -19,6 +19,7 @@ type NDArray struct {
 func release(a *NDArray) {
 	if a != nil {
 		capi.ReleaseNDArry(a.handle)
+		a.handle = nil
 	}
 }
 
@@ -87,6 +88,14 @@ func (c Context) CopyAs(a *NDArray, dtype Dtype) *NDArray {
 		return &NDArray{err: err}
 	}
 	return b
+}
+
+func (a *NDArray) NewLikeThis() *NDArray {
+	return a.ctx.Array(a.dtype, a.dim)
+}
+
+func (a *NDArray) Context() Context {
+	return a.ctx
 }
 
 func (a *NDArray) Dtype() Dtype {
