@@ -16,6 +16,9 @@ const (
 	KeyLr
 	KeyMomentum
 	KeyWd
+	KeyBeta1
+	KeyBeta2
+	KeyEpsilon
 	KeyNoKey
 )
 
@@ -31,6 +34,9 @@ var keymap = map[MxnetKey]string{
 	KeyLr:            "lr",
 	KeyMomentum:      "momentum",
 	KeyWd:            "wd",
+	KeyBeta1:         "beta1",
+	KeyBeta2:         "beta2",
+	KeyEpsilon:       "epsilon",
 	KeyNormalization: "normalization",
 }
 
@@ -66,6 +72,7 @@ const (
 	OpPowerScalar
 	OpPowerScalarR
 	OpSgdUpdate
+	OpAdamUpdate
 	OpNoOp
 )
 
@@ -91,6 +98,7 @@ var opmap = map[MxnetOp]string{
 	OpPowerScalar:   "_power_scalar",
 	OpPowerScalarR:  "_rpower_scalar",
 	OpSgdUpdate:     "sgd_mom_update",
+	OpAdamUpdate:    "adam_update",
 }
 
 func (o MxnetOp) Value() string {

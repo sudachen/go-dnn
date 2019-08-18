@@ -20,11 +20,19 @@ static int imperative_invoke1_inout(AtomicSymbolCreator ent, NDArrayHandle in, N
 	return err;
 }
 
-static int imperative_invoke3_inout(AtomicSymbolCreator ent, NDArrayHandle in0, NDArrayHandle in1, NDArrayHandle in2, NDArrayHandle out, int ano, const char **keys, const char **vals) {
+static int imperative_invokeN_inout(
+	AtomicSymbolCreator ent,
+	NDArrayHandle out,
+	int ano, const char **keys, const char **vals,
+	NDArrayHandle in0, NDArrayHandle in1,
+	NDArrayHandle in2, NDArrayHandle in3)
+{
+	int nin = 0;
 	NDArrayHandle* out1[1] = {&out};
-	NDArrayHandle in3[3] = {in0,in1,in2};
+	NDArrayHandle inN[4] = {in0,in1,in2,in3};
+	for ( ;nin<4 && inN[nin]; ++nin) {}
 	int nout = 1;
-	int err = MXImperativeInvoke(ent, 3, in3, &nout, &out1[0], ano, keys, vals);
+	int err = MXImperativeInvoke(ent, nin, inN, &nout, &out1[0], ano, keys, vals);
 	return err;
 }
 
@@ -258,8 +266,6 @@ func ListArguments(handle SymbolHandle) ([]string, error) {
 		r[i] = name_at(i)
 	}
 
-	fmt.Println(r)
-
 	return r, nil
 }
 
@@ -441,12 +447,12 @@ func Backward(exec ExecutorHandle) error {
 	return nil
 }
 
-func OptimizerUpdate(op MxnetOp, params, grads, state NDArrayHandle, a ...interface{}) error {
+func OptimizerUpdate(op MxnetOp, params, grads, state1 NDArrayHandle, state2 NDArrayHandle, a ...interface{}) error {
 	var keys [MaxArgsCount]*C.char
 	var vals [MaxArgsCount]*C.char
 	ano := C.int(Fillargs(keys[:], vals[:], a))
 	if ent := mxentry[op]; ent != nil {
-		if e := C.imperative_invoke3_inout(ent, params, grads, state, params, ano, &keys[0], &vals[0]); e != 0 {
+		if e := C.imperative_invokeN_inout(ent, params, ano, &keys[0], &vals[0], params, grads, state1, state2); e != 0 {
 			return fmt.Errorf("mxnet api %v error: %v", op.Value(), mxLastError())
 		}
 	} else {

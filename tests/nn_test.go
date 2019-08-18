@@ -61,9 +61,13 @@ func Test_Lambda_Forward(t *testing.T) {
 	}
 }
 
-func Test_nn1(t *testing.T) {
-	f := func(x *mx.Symbol) *mx.Symbol { return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd)), 2) }
-	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), &nn.SGD{Loss: nn.L1Loss})
+func f_nn1(t *testing.T, opt nn.OptimizerConf) {
+
+	f := func(x *mx.Symbol) *mx.Symbol {
+		return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd)), 2)
+	}
+
+	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), opt)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
 	defer net.Release()
@@ -79,7 +83,8 @@ func Test_nn1(t *testing.T) {
 		assert.NilError(t, err)
 		err := net.Train(input, label)
 		assert.NilError(t, err)
-		if net.Graph.Loss.ValuesF32()[0] < 0.01 {
+		v := net.Graph.Params["_offset"].Data.ValuesF32()
+		if v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1  {
 			t.Logf("%d %v %v %v %v", n,
 				net.Graph.Loss.ValuesF32(),
 				net.Graph.Outputs[0].ValuesF32(),
@@ -91,4 +96,10 @@ func Test_nn1(t *testing.T) {
 
 	v := net.Graph.Params["_offset"].Data.ValuesF32()
 	assert.Assert(t, v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1)
+}
+
+func Test_nn1(t *testing.T) {
+	f_nn1(t,&nn.SGD{Lr:.01})
+	f_nn1(t,&nn.Adam{Lr:.1})
+	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss})
 }
