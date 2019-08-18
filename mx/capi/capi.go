@@ -37,7 +37,7 @@ import "C"
 
 import (
 	"fmt"
-	"github.com/sudachen/go-extra/fu"
+	"github.com/sudachen/go-dnn/fu"
 	"unsafe"
 )
 

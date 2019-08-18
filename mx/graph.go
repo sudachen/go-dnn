@@ -2,8 +2,8 @@ package mx
 
 import (
 	"fmt"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx/capi"
-	"github.com/sudachen/go-extra/fu"
 	"io"
 	"runtime"
 )
