@@ -10,8 +10,6 @@ func Contains(cont interface{}, val interface{}) bool {
 				return true
 			}
 		}
-	} else if cv.Kind() == reflect.Map {
-		return Contains(cv.MapRange(), val)
 	}
 	return false
 }

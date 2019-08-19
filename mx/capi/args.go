@@ -52,9 +52,12 @@ func Cache(a interface{}) *C.char {
 func Fillargs(keys []*C.char, vals []*C.char, ap []interface{}) int {
 	i := 0
 	for len(ap) != 0 && i < len(vals) {
-		keys[i] = mxkeys[ap[0].(MxnetKey)]
-		vals[i] = Cache(ap[1])
-		i++
+		k := ap[0].(MxnetKey)
+		if k != KeyEmpty {
+			keys[i] = mxkeys[k]
+			vals[i] = Cache(ap[1])
+			i++
+		}
 		ap = ap[2:]
 	}
 	return i

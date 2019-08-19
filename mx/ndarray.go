@@ -23,12 +23,6 @@ func release(a *NDArray) {
 	}
 }
 
-// idiomatic finalizer
-func (a *NDArray) Close() error {
-	release(a)
-	return nil
-}
-
 func (a *NDArray) Release() {
 	release(a)
 }

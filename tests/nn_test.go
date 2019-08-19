@@ -3,6 +3,7 @@ package tests
 import (
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/nn"
+	"github.com/sudachen/go-dnn/nn/inite"
 	"gotest.tools/assert"
 	"testing"
 )
@@ -20,7 +21,7 @@ func nn_Test() {
 }
 */
 
-func Test_Lambda_Forward(t *testing.T) {
+func Test_nn1_Forward(t *testing.T) {
 	var err error
 
 	input := [][]float32{
@@ -61,10 +62,10 @@ func Test_Lambda_Forward(t *testing.T) {
 	}
 }
 
-func f_nn1(t *testing.T, opt nn.OptimizerConf) {
+func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 
 	f := func(x *mx.Symbol) *mx.Symbol {
-		return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd)), 2)
+		return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd, ini)), 2)
 	}
 
 	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), opt)
@@ -99,7 +100,9 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf) {
 }
 
 func Test_nn1(t *testing.T) {
-	f_nn1(t,&nn.SGD{Lr:.01})
-	f_nn1(t,&nn.Adam{Lr:.1})
-	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss})
+	f_nn1(t,&nn.SGD{Lr:.01},nil)
+	f_nn1(t,&nn.SGD{Lr:.01},&inite.Const{0})
+	f_nn1(t,&nn.Adam{Lr:.1},&inite.Const{.1})
+	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss},&inite.Xavier{Gaussian:true,Magnitude:0.5})
+	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss},&inite.Xavier{Magnitude:1})
 }

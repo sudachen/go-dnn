@@ -138,7 +138,7 @@ func ImperativeInvokeInplace1(op MxnetOp, h NDArrayHandle, a ...interface{}) err
 
 	if ent := mxentry[op]; ent != nil {
 		if e := C.imperative_invoke1_inplace(ent, C.NDArrayHandle(h), ano, &keys[0], &vals[0]); e != 0 {
-			return fmt.Errorf("maxnet api error: %v", op.Value())
+			return fmt.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
 		}
 	} else {
 		return fmt.Errorf("unresolved API entry %v", op.Value())
@@ -159,7 +159,7 @@ func ImperativeInvokeInOut1(op MxnetOp, h NDArrayHandle, o NDArrayHandle, a ...i
 	ano := C.int(Fillargs(keys[:], vals[:], a))
 	if ent := mxentry[op]; ent != nil {
 		if e := C.imperative_invoke1_inout(ent, C.NDArrayHandle(h), C.NDArrayHandle(o), ano, &keys[0], &vals[0]); e != 0 {
-			return fmt.Errorf("maxnet api error: %v", op.Value())
+			return fmt.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
 		}
 	} else {
 		return fmt.Errorf("unresolved API entry %v", op.Value())
@@ -317,15 +317,11 @@ func InferShapes(handle SymbolHandle, with map[string][]int) (map[string][]int, 
 
 	shape_at := func(i int, d *C.uint, s **C.uint) []int {
 		n := int(*(*C.uint)(fu.Index(i, d)))
-		//pd := uintptr(unsafe.Pointer(d)) + uintptr(i)*unsafe.Sizeof(C.uint(0))
-		//n := int(*(*C.uint)(unsafe.Pointer(pd)))
 		r := make([]int, n)
 		ps := *(**C.uint)(fu.Index(i, s))
-		//ps := *(**C.uint)(unsafe.Pointer(uintptr(unsafe.Pointer(s)) + uintptr(i)*unsafe.Sizeof(uintptr(0))))
 
 		for j := 0; j < n; j++ {
 			r[j] = int(*(*C.int)(fu.Index(j, ps)))
-			//r[j] = int(*(*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(ps)) + uintptr(j)*unsafe.Sizeof(C.uint(0)))))
 		}
 
 		return r

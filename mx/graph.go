@@ -6,6 +6,7 @@ import (
 	"github.com/sudachen/go-dnn/mx/capi"
 	"io"
 	"runtime"
+	"strings"
 )
 
 type Loss = func(*Symbol, *Symbol) *Symbol
@@ -27,7 +28,8 @@ type Graph struct {
 	Params  map[string]Param
 
 	Exec         capi.ExecutorHandle
-	Initializers map[string]VarInitializer
+	Initializers map[string]Inite
+	Initialized  bool
 
 	vars    map[string]capi.SymbolHandle
 	symbols map[*Symbol]capi.SymbolHandle
@@ -59,11 +61,6 @@ func (g *Graph) Release() {
 	g.Params = nil
 }
 
-func (g *Graph) Close() error {
-	g.Release()
-	return nil
-}
-
 func (g *Graph) LoadParams(reader io.Reader) error {
 	return nil
 }
@@ -77,7 +74,7 @@ func (g *Graph) allocate(shapes map[string][]int) error {
 		if n != "_output" && n != "_label" && n != "_input" {
 			p, ok := g.Params[n]
 			if !ok || p.Data == nil {
-				a := g.Ctx.Array(g.Dtype, Dim(s...)).Zeros()
+				a := g.Ctx.Array(g.Dtype, Dim(s...))
 				if a.Err() != nil {
 					return a.Err()
 				}
@@ -184,7 +181,7 @@ func Compose(
 		Params:       make(map[string]Param),
 		symbols:      make(map[*Symbol]capi.SymbolHandle),
 		vars:         make(map[string]capi.SymbolHandle),
-		Initializers: make(map[string]VarInitializer),
+		Initializers: make(map[string]Inite),
 	}
 
 	if _, err = g.compose(Var("_input"), ""); err != nil {
@@ -399,7 +396,35 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 	return op, nil
 }
 
+func (g *Graph) Initialize(inite func(*NDArray,string)error) error{
+	for name, param := range g.Params {
+		if i, ok := g.Initializers[name]; ok && i != nil {
+			if err := i.Inite(param.Data); err != nil {
+				return err
+			}
+		} else {
+			if err := inite(param.Data,name); err != nil {
+				return err
+			}
+
+		}
+	}
+	g.Initialized = true
+	return nil
+}
+
 func (g *Graph) Forward(train bool) error {
+	if !g.Initialized {
+		err := g.Initialize(func(a *NDArray, name string)error{
+			if strings.Index(name,"_bias") >= 0 {
+				return a.Zeros().Err()
+			}
+			return a.Xavier(false,2,3).Err()
+		})
+		if err != nil {
+			return err
+		}
+	}
 	return capi.Forward(g.Exec, train)
 }
 

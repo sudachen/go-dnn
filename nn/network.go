@@ -6,6 +6,7 @@ type Network struct {
 	Graph *mx.Graph
 
 	BatchLen int
+	Initialized bool
 	Optimizer
 }
 

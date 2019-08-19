@@ -12,7 +12,6 @@ const BinaryOpFlag SymbolOp = 0x100000
 const (
 	VarOp    SymbolOp = -1
 	InputOp  SymbolOp = -2
-	JsonOp   SymbolOp = -3
 	ScalarOp SymbolOp = -4
 	AgVarOp  SymbolOp = -5
 	NsOp     SymbolOp = -6
@@ -33,19 +32,16 @@ const (
 	PowOp
 )
 
-type VarInitializer = func(*NDArray) error
+type Inite interface {
+	Inite(*NDArray)error
+}
 
 type Symbol struct {
 	op    SymbolOp
 	value string
 	args  []*Symbol
-	init  VarInitializer
+	init  Inite
 	attr  map[capi.MxnetKey]string
-}
-
-func (s *Symbol) String() string {
-	return "op"
-	//return fmt.Sprintf("&op{%s}",s.name)
 }
 
 type _hidden_input_ struct{}
@@ -55,10 +51,6 @@ func Input(..._hidden_input_) *Symbol { return &Symbol{op: InputOp} }
 type _hidden_autograd_ struct{}
 
 func Autograd(_hidden_autograd_) {}
-
-func JsonSymbol(json string) *Symbol {
-	return &Symbol{op: JsonOp, value: json}
-}
 
 func Ns(ns string, s *Symbol) *Symbol {
 	return &Symbol{op: NsOp, value: ns, args: []*Symbol{s}}
@@ -87,11 +79,14 @@ func Dot(lv interface{}, rv interface{}) *Symbol {
 func Var(name string, opt ...interface{}) *Symbol {
 	s := &Symbol{op: VarOp, value: name}
 	for _, t := range opt {
-		if init, ok := t.(func(*NDArray) error); ok {
+		if t == nil {
+			continue
+		} else if init, ok := t.(Inite); ok {
 			s.init = init
-		}
-		if _, ok := t.(func(_hidden_autograd_)); ok {
+		} else if _, ok := t.(func(_hidden_autograd_)); ok {
 			s.op = AgVarOp
+		} else {
+			panic(fmt.Sprintf("unexpected parameter %v", t))
 		}
 	}
 	return s
