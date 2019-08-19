@@ -85,7 +85,7 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 		err := net.Train(input, label)
 		assert.NilError(t, err)
 		v := net.Graph.Params["_offset"].Data.ValuesF32()
-		if v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1  {
+		if v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1 {
 			t.Logf("%d %v %v %v %v", n,
 				net.Graph.Loss.ValuesF32(),
 				net.Graph.Outputs[0].ValuesF32(),
@@ -100,9 +100,9 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 }
 
 func Test_nn1(t *testing.T) {
-	f_nn1(t,&nn.SGD{Lr:.01},nil)
-	f_nn1(t,&nn.SGD{Lr:.01},&inite.Const{0})
-	f_nn1(t,&nn.Adam{Lr:.1},&inite.Const{.1})
-	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss},&inite.Xavier{Gaussian:true,Magnitude:0.5})
-	f_nn1(t,&nn.Adam{Lr:.1,Loss:nn.L0Loss},&inite.Xavier{Magnitude:1})
+	f_nn1(t, &nn.SGD{Lr: .01}, nil)
+	f_nn1(t, &nn.SGD{Lr: .01}, &inite.Const{0})
+	f_nn1(t, &nn.Adam{Lr: .1}, &inite.Const{.1})
+	f_nn1(t, &nn.Adam{Lr: .1, Loss: nn.L0Loss}, &inite.Xavier{Gaussian: true, Magnitude: 0.5})
+	f_nn1(t, &nn.Adam{Lr: .1, Loss: nn.L0Loss}, &inite.Xavier{Magnitude: 1})
 }

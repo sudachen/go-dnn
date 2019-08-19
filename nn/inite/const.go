@@ -12,4 +12,3 @@ func (x *Const) Inite(a *mx.NDArray) error {
 	}
 	return a.Fill(x.Value).Err()
 }
-

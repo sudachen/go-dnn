@@ -396,14 +396,14 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 	return op, nil
 }
 
-func (g *Graph) Initialize(inite func(*NDArray,string)error) error{
+func (g *Graph) Initialize(inite func(*NDArray, string) error) error {
 	for name, param := range g.Params {
 		if i, ok := g.Initializers[name]; ok && i != nil {
 			if err := i.Inite(param.Data); err != nil {
 				return err
 			}
 		} else {
-			if err := inite(param.Data,name); err != nil {
+			if err := inite(param.Data, name); err != nil {
 				return err
 			}
 
@@ -415,11 +415,11 @@ func (g *Graph) Initialize(inite func(*NDArray,string)error) error{
 
 func (g *Graph) Forward(train bool) error {
 	if !g.Initialized {
-		err := g.Initialize(func(a *NDArray, name string)error{
-			if strings.Index(name,"_bias") >= 0 {
+		err := g.Initialize(func(a *NDArray, name string) error {
+			if strings.Index(name, "_bias") >= 0 {
 				return a.Zeros().Err()
 			}
-			return a.Xavier(false,2,3).Err()
+			return a.Xavier(false, 2, 3).Err()
 		})
 		if err != nil {
 			return err

@@ -40,7 +40,7 @@ var keymap = map[MxnetKey]string{
 	KeyBeta2:         "beta2",
 	KeyEpsilon:       "epsilon",
 	KeyNormalization: "normalization",
-	KeyLoc:			  "loc",
+	KeyLoc:           "loc",
 	KeyScale:         "scale",
 }
 
@@ -48,7 +48,9 @@ func (k MxnetKey) Value() string {
 	if v, ok := keymap[k]; ok {
 		return v
 	}
-	if k == KeyEmpty { return "" }
+	if k == KeyEmpty {
+		return ""
+	}
 	panic("mxnet parameters key out of range")
 }
 

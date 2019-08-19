@@ -5,7 +5,7 @@ import "github.com/sudachen/go-dnn/mx"
 type Network struct {
 	Graph *mx.Graph
 
-	BatchLen int
+	BatchLen    int
 	Initialized bool
 	Optimizer
 }

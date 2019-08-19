@@ -33,7 +33,7 @@ const (
 )
 
 type Inite interface {
-	Inite(*NDArray)error
+	Inite(*NDArray) error
 }
 
 type Symbol struct {
