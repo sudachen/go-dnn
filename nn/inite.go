@@ -1,6 +1,17 @@
-package inite
+package nn
 
 import "github.com/sudachen/go-dnn/mx"
+
+type Const struct {
+	Value float32
+}
+
+func (x *Const) Inite(a *mx.NDArray) error {
+	if x.Value == 0 {
+		return a.Zeros().Err()
+	}
+	return a.Fill(x.Value).Err()
+}
 
 type XavierFactor int
 
@@ -26,4 +37,16 @@ func (x *Xavier) Inite(a *mx.NDArray) error {
 		factor = int(x.Factor)
 	}
 	return a.Xavier(x.Gaussian, factor, magnitude).Err()
+}
+
+type Uniform struct {
+	Magnitude float32
+}
+
+func (x *Uniform) Inite(a *mx.NDArray) error {
+	var magnitude float32 = 1.
+	if x.Magnitude > 0 {
+		magnitude = x.Magnitude
+	}
+	return a.Uniform(0, magnitude).Err()
 }

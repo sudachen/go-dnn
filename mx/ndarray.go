@@ -139,6 +139,15 @@ var typemap = map[Dtype]reflect.Type{
 	Int64:   reflect.TypeOf(int64(0)),
 }
 
+var rtypemap = map[reflect.Type]Dtype{
+	reflect.TypeOf(float64(0)): Float64,
+	reflect.TypeOf(float32(0)): Float32,
+	reflect.TypeOf(int8(0)):    Int8,
+	reflect.TypeOf(uint8(0)):   Uint8,
+	reflect.TypeOf(int32(0)):   Int32,
+	reflect.TypeOf(int64(0)):   Int64,
+}
+
 func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, error) {
 	var err error
 	if v0.Kind() == reflect.Interface {
@@ -242,4 +251,23 @@ func (a *NDArray) ValuesF32() []float32 {
 		panic(err.Error())
 	}
 	return v.([]float32)
+}
+
+func (a *NDArray) CopyValuesTo(dst interface{}) error {
+	q := a
+	ln := q.dim.Total()
+	s := reflect.ValueOf(dst)
+	t, ok := rtypemap[s.Index(0).Type()]
+	if !ok {
+		return fmt.Errorf("invalid destination type %s", s.Type())
+	}
+
+	if q.dtype != t {
+		q = CPU.CopyAs(q, t)
+		defer q.Release()
+	}
+	if e := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), ln); e != 0 {
+		return fmt.Errorf("failed to copy raw data")
+	}
+	return nil
 }

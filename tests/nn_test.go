@@ -3,23 +3,9 @@ package tests
 import (
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/nn"
-	"github.com/sudachen/go-dnn/nn/inite"
 	"gotest.tools/assert"
 	"testing"
 )
-
-/*
-func nn_Test() {
-	nn.Connect(
-		&nn.Convolution{
-			Kernel: mx.Dim(3,3),
-			Filters: 25,
-		},
-		&nn.FullConnected{
-			Count: 100,
-		})
-}
-*/
 
 func Test_nn1_Forward(t *testing.T) {
 	var err error
@@ -36,7 +22,7 @@ func Test_nn1_Forward(t *testing.T) {
 		{0, 0, 0},
 	}
 
-	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Ns("ns", mx.Mul(input, 3)) }}
+	nb := &nn.Lambda{func(input *mx.Symbol) *mx.Symbol { return mx.Mul(input, 3) }}
 	net, err := nn.Bind(mx.CPU, nb, mx.Dim(1, 3), nil)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
@@ -65,7 +51,7 @@ func Test_nn1_Forward(t *testing.T) {
 func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 
 	f := func(x *mx.Symbol) *mx.Symbol {
-		return mx.Pow(mx.Add(x, mx.Var("_offset", mx.Autograd, ini)), 2)
+		return mx.Pow(mx.Add(x, mx.Var("_offset", ini)), 2)
 	}
 
 	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), opt)
@@ -73,14 +59,14 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
-	input := []float32{3, 3}
+	input := []float32{1, 1}
 	label := []float32{0, 0}
 
 	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
 	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
 	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
 
-	for n := 0; n < 100; n++ {
+	for n := 0; n < 200; n++ {
 		assert.NilError(t, err)
 		err := net.Train(input, label)
 		assert.NilError(t, err)
@@ -100,9 +86,9 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 }
 
 func Test_nn1(t *testing.T) {
-	f_nn1(t, &nn.SGD{Lr: .01}, nil)
-	f_nn1(t, &nn.SGD{Lr: .01}, &inite.Const{0})
-	f_nn1(t, &nn.Adam{Lr: .1}, &inite.Const{.1})
-	f_nn1(t, &nn.Adam{Lr: .1, Loss: nn.L0Loss}, &inite.Xavier{Gaussian: true, Magnitude: 0.5})
-	f_nn1(t, &nn.Adam{Lr: .1, Loss: nn.L0Loss}, &inite.Xavier{Magnitude: 1})
+	f_nn1(t, &nn.SGD{Lr: .1, Loss: &nn.L0Loss{}}, nil)
+	f_nn1(t, &nn.SGD{Lr: .1, Loss: &nn.L2Loss{}}, &nn.Const{0})
+	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L0Loss{}}, &nn.Const{.1})
+	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L2Loss{}}, &nn.Xavier{Gaussian: true, Magnitude: 0.5})
+	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L1Loss{}}, &nn.Uniform{})
 }

@@ -9,7 +9,11 @@ import (
 	"strings"
 )
 
-type Loss = func(*Symbol, *Symbol) *Symbol
+type Loss interface {
+	// out, label => loss, sparse
+	// sparse means label dimensions reduced by last one
+	Loss(*Symbol, *Symbol) (*Symbol, bool)
+}
 
 type Param struct {
 	Data     *NDArray
@@ -31,13 +35,17 @@ type Graph struct {
 	Initializers map[string]Inite
 	Initialized  bool
 
+	symOut, symLast capi.SymbolHandle
+
 	vars    map[string]capi.SymbolHandle
 	symbols map[*Symbol]capi.SymbolHandle
 }
 
 func (g *Graph) symRelease() {
 	for _, v := range g.symbols {
-		capi.ReleaseSymbol(v)
+		if v != g.symOut && v != g.symLast {
+			capi.ReleaseSymbol(v)
+		}
 	}
 	g.symbols = nil
 	for _, v := range g.vars {
@@ -48,6 +56,11 @@ func (g *Graph) symRelease() {
 
 func (g *Graph) Release() {
 	g.symRelease()
+	if g.symLast != g.symOut {
+		capi.ReleaseSymbol(g.symLast)
+	}
+	capi.ReleaseSymbol(g.symOut)
+
 	g.Input.Release()
 	g.Label.Release()
 
@@ -71,7 +84,11 @@ func (g *Graph) SaveParams(writer io.Writer) error {
 
 func (g *Graph) allocate(shapes map[string][]int) error {
 	for n, s := range shapes {
-		if n != "_output" && n != "_label" && n != "_input" {
+		if n == "_label" {
+			if g.Label = g.Ctx.Array(g.Dtype, Dim(s...)); g.Label.Err() != nil {
+				return g.Label.Err()
+			}
+		} else if n != "_output" && n != "_input" {
 			p, ok := g.Params[n]
 			if !ok || p.Data == nil {
 				a := g.Ctx.Array(g.Dtype, Dim(s...))
@@ -86,7 +103,48 @@ func (g *Graph) allocate(shapes map[string][]int) error {
 	return nil
 }
 
-func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
+func (g *Graph) GetShapes(withLoss bool) (map[string][]int, error) {
+	var (
+		err                  error
+		inter                capi.SymbolHandle
+		sym                  capi.SymbolHandle = g.symLast
+		input, label, output Dimension
+		shapes               map[string][]int
+	)
+
+	if withLoss {
+		sym = g.symOut
+	}
+
+	if inter, err = capi.GetInternals(sym); err != nil {
+		return nil, err
+	}
+
+	input = g.Input.Dim()
+	x := map[string][]int{"_input": input.Shape[:input.Len]}
+	if withLoss && g.Label != nil {
+		label = g.Label.Dim()
+		x["_label"] = label.Shape[:label.Len]
+	}
+
+	if shapes, err = capi.InferShapes(inter, x, true); err != nil {
+		return nil, err
+	}
+
+	shapes["_input"] = input.Shape[1:input.Len]
+	if label.Len != 0 {
+		shapes["_label"] = label.Shape[:label.Len]
+	}
+
+	for n, o := range g.Outputs {
+		output = o.Dim()
+		shapes[fmt.Sprintf("_output%d", n)] = output.Shape[:label.Len]
+	}
+
+	return shapes, nil
+}
+
+func (g *Graph) bind(input Dimension, sparse bool) error {
 	var (
 		shapes map[string][]int
 		err    error
@@ -95,22 +153,22 @@ func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
 		d      Dimension
 	)
 	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if shapes, err = capi.InferShapes(last, x); err != nil {
+	if shapes, err = capi.InferShapes(g.symLast, x, false); err != nil {
 		return err
 	}
 	if g.Input = g.Ctx.Array(g.Dtype, input); g.Input.Err() != nil {
 		return g.Input.Err()
 	}
-	if names, err = capi.ListArguments(out); err != nil {
+	if names, err = capi.ListNames(g.symOut, false); err != nil {
 		return err
 	}
-	if last != out && fu.Contains(names, "_label") {
+	if g.symLast != g.symOut && fu.Contains(names, "_label") {
 		d = Dim(shapes["_output"]...)
-		if g.Label = g.Ctx.Array(g.Dtype, d); g.Label.Err() != nil {
-			return g.Label.Err()
+		if sparse {
+			d.Len -= 1
 		}
 		x["_label"] = d.Shape[:d.Len]
-		if shapes, err = capi.InferShapes(out, x); err != nil {
+		if shapes, err = capi.InferShapes(g.symOut, x, false); err != nil {
 			return err
 		}
 	}
@@ -129,23 +187,21 @@ func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
 		} else {
 			p := g.Params[name]
 			args[i] = p.Data.handle
-			if last != out && p.Autograd {
+			if g.symLast != g.symOut && p.Autograd {
 				a := g.Ctx.Array(g.Dtype, p.Data.Dim())
 				if a.Err() != nil {
 					return a.Err()
 				}
 				p.Grad = a
 				grads[i] = a.handle
-				a.Zeros()
 				g.Params[name] = p
 			}
 		}
 	}
 
-	if g.Exec, err = capi.Bind(out, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
+	if g.Exec, err = capi.Bind(g.symOut, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
 		return err
 	}
-	g.symRelease() // symbols are not necessary more
 
 	if o, err = capi.GetOutputs(g.Exec); err != nil {
 		return err
@@ -155,9 +211,11 @@ func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
 	for i, v := range o {
 		g.Outputs[i] = &NDArray{handle: v.Handle, ctx: g.Ctx, dim: Dim(v.Dim...), dtype: Dtype(v.Type)}
 	}
-	if last != out {
+	if g.symLast != g.symOut {
 		g.Loss = g.Outputs[len(o)-1]
 		g.Outputs = g.Outputs[:len(o)-1]
+	} else {
+		g.Loss = g.Outputs[0]
 	}
 	return nil
 }
@@ -165,7 +223,7 @@ func (g *Graph) bind(input Dimension, out, last capi.SymbolHandle) error {
 func Compose(
 	ctx Context,
 	sym *Symbol,
-	symloss Loss,
+	loss Loss,
 	input Dimension,
 	dtype Dtype) (*Graph, error) {
 
@@ -184,29 +242,36 @@ func Compose(
 		Initializers: make(map[string]Inite),
 	}
 
-	if _, err = g.compose(Var("_input"), ""); err != nil {
+	if _, err = g.compose(Var("_input")); err != nil {
 		g.Release()
 		return nil, err
 	}
 
-	if last, err = g.compose(sym, ""); err != nil {
+	if last, err = g.compose(sym); err != nil {
 		g.Release()
 		return nil, err
 	}
 
-	if symloss != nil {
-		loss := Group(
+	out = last
+
+	var sparse bool
+	if loss != nil {
+		var symloss *Symbol
+		symloss, sparse = loss.Loss(sym, Var("_label"))
+		l := Group(
 			MakeLoss(BlockGrad(sym)),
-			MakeLoss(symloss(sym, Var("_label"))))
-		if out, err = g.compose(loss, ""); err != nil {
+			MakeLoss(symloss))
+		if out, err = g.compose(l); err != nil {
 			g.Release()
 			return nil, err
 		}
-	} else {
-		out = last
 	}
 
-	if err = g.bind(input, out, last); err != nil {
+	g.symLast = last
+	g.symOut = out
+	g.symRelease() // other symbols are not necessary more
+
+	if err = g.bind(input, sparse); err != nil {
 		g.Release()
 		return nil, err
 	}
@@ -215,97 +280,13 @@ func Compose(
 	return g, nil
 }
 
-func selectOp(s *Symbol, op, sop, sopR capi.MxnetOp) (capi.MxnetOp, string) {
-	l, r := s.args[0], s.args[1]
-
-	if l != nil && l.op == ScalarOp {
-		return sopR, l.value
-	}
-
-	if r != nil && r.op == ScalarOp {
-		return sop, r.value
-	}
-
-	return op, ""
-}
-
-func mkCommonSymbol(s *Symbol) (capi.SymbolHandle, error) {
-	var mxnetop capi.MxnetOp
-	switch s.op {
-	case MeanOp:
-		mxnetop = capi.OpMean
-	case AbsOp:
-		mxnetop = capi.OpAbs
-	case BlockGradOp:
-		mxnetop = capi.OpBlockGrad
-	//case GroupOp: // handled directly by Graph.compose
-	case MakeLossOp:
-		mxnetop = capi.OpMakeLoss
-	default:
-		return nil, fmt.Errorf("unexpected symbol")
-	}
-	h, err := capi.NewSymbol(mxnetop, s.attr)
-	if err != nil {
-		return nil, err
-	}
-	return h, nil
-}
-
-func mkBinarySymbol(s *Symbol) (capi.SymbolHandle, error) {
-	var mxnetop capi.MxnetOp
-	var scalar string
-	switch s.op {
-	case AddOp:
-		mxnetop, scalar = selectOp(s, capi.OpAdd, capi.OpAddScalar, capi.OpAddScalar)
-	case SubOp:
-		mxnetop, scalar = selectOp(s, capi.OpSub, capi.OpSubScalar, capi.OpSubScalarR)
-	case MulOp:
-		mxnetop, scalar = selectOp(s, capi.OpMul, capi.OpMulScalar, capi.OpMulScalar)
-	case DivOp:
-		mxnetop, scalar = selectOp(s, capi.OpDiv, capi.OpDivScalar, capi.OpDivScalarR)
-	case PowOp:
-		mxnetop, scalar = selectOp(s, capi.OpNoOp, capi.OpPowerScalar, capi.OpPowerScalarR)
-	default:
-		return nil, fmt.Errorf("unexpected symbol")
-	}
-	var (
-		h   capi.SymbolHandle
-		err error
-	)
-	if scalar != "" {
-		h, err = capi.NewSymbol(mxnetop, nil, capi.KeyScalar, scalar)
-	} else {
-		h, err = capi.NewSymbol(mxnetop, nil)
-	}
-	if err != nil {
-		return nil, err
-	}
-	return h, nil
-}
-
-var opmap = map[SymbolOp]func(*Symbol) (capi.SymbolHandle, error){
-	AddOp: mkBinarySymbol,
-	SubOp: mkBinarySymbol,
-	MulOp: mkBinarySymbol,
-	DivOp: mkBinarySymbol,
-	PowOp: mkBinarySymbol,
-}
-
-func mkSymbol(s *Symbol) (capi.SymbolHandle, error) {
-	if f, ok := opmap[s.op]; ok {
-		return f(s)
-	} else {
-		return mkCommonSymbol(s)
-	}
-}
-
-func (g *Graph) subcompose(s *Symbol, ns string) ([]capi.SymbolHandle, error) {
+func (g *Graph) subcompose(s *Symbol) ([]capi.SymbolHandle, error) {
 	var err error
 	var h capi.SymbolHandle
 	var a []capi.SymbolHandle
 
 	for _, v := range s.args {
-		if h, err = g.compose(v, ns); err != nil {
+		if h, err = g.compose(v); err != nil {
 			return nil, err
 		}
 		if h != nil {
@@ -316,22 +297,19 @@ func (g *Graph) subcompose(s *Symbol, ns string) ([]capi.SymbolHandle, error) {
 	return a, nil
 }
 
-func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
+func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 
 	if h, ok := g.symbols[s]; ok {
 		return h, nil
 	}
 
 	switch s.op {
-	case InputOp:
+	case OpInput_:
 		return g.vars["_input"], nil
-	case ScalarOp:
+	case OpScalar_:
 		return nil, nil
-	case VarOp, AgVarOp:
-		n := s.value
-		if len(n) > 1 && n[0] != '_' {
-			n = ns + n
-		}
+	case OpVar_, OpNogVar_:
+		n := s.name
 		if v, ok := g.vars[n]; ok {
 			return v, nil
 		}
@@ -343,34 +321,24 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 		if s.init != nil {
 			g.Initializers[n] = s.init
 		}
-		if s.op == AgVarOp {
+		if s.op != OpNogVar_ && n != "_input" && n != "_label" {
 			p := g.Params[n]
 			p.Autograd = true
 			g.Params[n] = p
 		}
 		return h, nil
-	case NsOp:
-		n := s.value
-		if len(n) == 0 {
-			return nil, fmt.Errorf("empty string in namespace name")
-		}
-		n = ns + n + "_"
-		if n[0] != '_' {
-			n = "_" + n
-		}
-		return g.compose(s.args[0], n)
 	}
 
 	var err error
 	var op capi.SymbolHandle
 	var a []capi.SymbolHandle
 
-	a, err = g.subcompose(s, ns)
+	a, err = g.subcompose(s)
 	if err != nil {
 		return nil, err
 	}
 
-	if s.op == GroupOp {
+	if s.op == OpGroup_ {
 
 		if op, err = capi.GroupSymbols(a); err != nil {
 			return nil, err
@@ -380,13 +348,16 @@ func (g *Graph) compose(s *Symbol, ns string) (capi.SymbolHandle, error) {
 
 	} else {
 
-		if op, err = mkSymbol(s); err != nil {
+		if op, err = capi.NewSymbol(s.op, s.attr); err != nil {
 			return nil, err
 		}
 
 		g.symbols[s] = op
 
-		name := fmt.Sprintf("%ssym%d", ns, len(g.symbols))
+		name := s.name
+		if len(name) < 3 {
+			name = fmt.Sprintf("%s%02d", "sym", NextSymbolId())
+		}
 
 		if err := capi.ComposeSymbol(op, name, a...); err != nil {
 			return nil, err
@@ -419,7 +390,8 @@ func (g *Graph) Forward(train bool) error {
 			if strings.Index(name, "_bias") >= 0 {
 				return a.Zeros().Err()
 			}
-			return a.Xavier(false, 2, 3).Err()
+			//return a.Uniform(0,1).Err()
+			return a.Xavier(false, 2, 1).Err()
 		})
 		if err != nil {
 			return err

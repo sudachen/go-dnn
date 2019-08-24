@@ -21,6 +21,22 @@ type Dimension struct {
 	Len   int
 }
 
+func (dim Dimension) Skip(n int) Dimension {
+	if dim.Len <= n {
+		return Dim()
+	}
+	d := Dimension{Len: dim.Len - n}
+	copy(d.Shape[0:], dim.Shape[n:])
+	return d
+}
+
+func (dim Dimension) Push(i int) Dimension {
+	d := Dimension{Len: dim.Len + 1}
+	d.Shape[0] = i
+	copy(d.Shape[1:], dim.Shape[:dim.Len])
+	return d
+}
+
 // represent array dimension as string
 func (dim Dimension) String() string {
 	s := "(%d,%d,%d,%d"[0:(3+(dim.Len-1)*3)] + ")"

@@ -2,13 +2,13 @@ package nn
 
 import (
 	"github.com/sudachen/go-dnn/mx"
-	"math"
+	//"math"
 )
 
 type Adam struct {
 	Loss mx.Loss
 
-	Lr, Beta1, Beta2, Epsilon float64
+	Lr, Beta1, Beta2, Epsilon float32
 }
 
 type stAdam struct {
@@ -19,15 +19,11 @@ type stAdam struct {
 
 type implAdam struct {
 	Adam
-	States  map[*mx.NDArray]stAdam
-	Upcount []float64
+	States map[*mx.NDArray]stAdam
 }
 
 func (opt *Adam) Init() (Optimizer, error) {
 	r := &implAdam{Adam: *opt, States: make(map[*mx.NDArray]stAdam)}
-	if r.Loss == nil {
-		r.Loss = L1Loss
-	}
 	if r.Lr == 0 {
 		r.Lr = 0.01
 	}
@@ -61,19 +57,10 @@ func (opt *implAdam) Update(params *mx.NDArray, grads *mx.NDArray) error {
 			v.Release()
 			return v.Err()
 		}
-		st = stAdam{Var: v, Mean: m, Index: len(opt.Upcount)}
+		st = stAdam{Var: v, Mean: m}
 		opt.States[params] = st
-		opt.Upcount = append(opt.Upcount, 0)
 	}
-	opt.Upcount[st.Index]++
-	t := opt.Upcount[st.Index]
-	coef1 := 1. - math.Pow(opt.Beta1, t)
-	coef2 := 1. - math.Pow(opt.Beta2, t)
-	lr := float32(opt.Lr * math.Sqrt(coef2) / coef1)
-	beta1 := float32(opt.Beta1)
-	beta2 := float32(opt.Beta2)
-	epsilon := float32(opt.Epsilon)
-	return mx.AdamUpdate(params, grads, st.Mean, st.Var, lr, beta1, beta2, epsilon, 0)
+	return mx.AdamUpdate(params, grads, st.Mean, st.Var, opt.Lr, opt.Beta1, opt.Beta2, opt.Epsilon, 0)
 }
 
 func (opt *implAdam) GetLoss() mx.Loss {

@@ -24,7 +24,7 @@ func Bind(ctx mx.Context, nb Block, input mx.Dimension, opt OptimizerConf) (*Net
 		opti Optimizer
 		loss mx.Loss
 	)
-	if sym, err = nb.Combine(mx.Input()); err != nil {
+	if sym, _, err = nb.Combine(mx.Input(), nil); err != nil {
 		return nil, err
 	}
 	if opt != nil {
@@ -41,20 +41,53 @@ func Bind(ctx mx.Context, nb Block, input mx.Dimension, opt OptimizerConf) (*Net
 	return f, nil
 }
 
-func (f *Network) Predict(data interface{}) ([][]float32, error) {
+func (f *Network) Predict1(data interface{}, out []float32) error {
 	if err := f.Graph.Input.SetValues(data); err != nil {
-		return nil, err
+		return err
 	}
 	if err := f.Graph.Forward(false); err != nil {
+		return err
+	}
+	if err := f.Graph.Outputs[0].CopyValuesTo(out); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *Network) Predict(data interface{}) ([][]float32, error) {
+	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
+	if err := f.Predict1(data, out); err != nil {
 		return nil, err
 	}
-	o := f.Graph.Outputs[0].ValuesF32()
 	r := make([][]float32, f.BatchLen)
-	stride := len(o) / f.BatchLen
+	stride := len(out) / f.BatchLen
 	for i := 0; i < f.BatchLen; i++ {
-		r[i] = o[i*stride : (i+1)*stride]
+		r[i] = out[i*stride : (i+1)*stride]
 	}
 	return r, nil
+}
+
+type AccFunc = func(data, label []float32) (bool, error)
+
+func (f *Network) Test(data, label []float32, accfunc AccFunc) (float64, error) {
+	var acc float64 = 0
+	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
+	if err := f.Predict1(data, out); err != nil {
+		return 0, err
+	}
+	count := f.Graph.Outputs[0].Len(0)
+	outw := len(out) / count
+	labelw := len(label) / count
+	for i := 0; i < count; i++ {
+		ok, err := accfunc(out[outw*i:outw*(i+1)], label[labelw*i:labelw*(i+1)])
+		if err != nil {
+			return 0, err
+		}
+		if ok {
+			acc += 1
+		}
+	}
+	return acc / float64(count), nil
 }
 
 func (f *Network) Train(data interface{}, label interface{}) error {
@@ -72,6 +105,10 @@ func (f *Network) Train(data interface{}, label interface{}) error {
 	if err := f.Graph.Backward(); err != nil {
 		return err
 	}
+	return f.Update()
+}
+
+func (f *Network) Update() error {
 	for _, p := range f.Graph.Params {
 		if p.Autograd && p.Grad != nil {
 			err := f.Optimizer.Update(p.Data, p.Grad)

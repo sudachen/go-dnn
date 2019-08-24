@@ -5,6 +5,7 @@ package capi
 #cgo LDFLAGS: -L/opt/mxnet/lib -lmxnet -Wl,-rpath=/opt/mxnet/lib
 #include <mxnet/c_api.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int imperative_invoke1_inplace(AtomicSymbolCreator ent, NDArrayHandle out, int ano, const char **keys, const char **vals) {
 	NDArrayHandle* out1[1] = {&out};
@@ -45,17 +46,15 @@ import "C"
 
 import (
 	"fmt"
+	"github.com/google/logger"
 	"github.com/sudachen/go-dnn/fu"
 	"unsafe"
 )
 
 var GpuCount int = 0
 var LibVersion = 0
-var mxkeys [KeyNoKey]*C.char
-var mxentry [OpNoOp]C.AtomicSymbolCreator
-
-//var binopkeys [2]*C.char
-//var scalarkeys [1]*C.char
+var mxkeys = map[MxnetKey]*C.char{}
+var mxentry = map[MxnetOp]C.AtomicSymbolCreator{}
 
 type NDArrayHandle = C.NDArrayHandle
 type SymbolHandle = C.SymbolHandle
@@ -98,10 +97,6 @@ func init() {
 		mxkeys[i] = C.CString(i.Value())
 	}
 
-	//binopkeys[0]  = mxkeys[KeyLhs]
-	//binopkeys[1]  = mxkeys[KeyRhs]
-	//scalarkeys[0] = mxkeys[KeyData]
-
 	var ascv *C.AtomicSymbolCreator
 	var ascn C.uint
 
@@ -120,10 +115,30 @@ func init() {
 		if e := C.MXSymbolGetAtomicSymbolName(a, &n); e != 0 {
 			panic(fmt.Sprintf("failed to gather name for symbol %x", a))
 		}
-		//fmt.Println(C.GoString(n))
 		if ent, ok := m[C.GoString(n)]; ok {
 			mxentry[ent] = a
 		}
+	}
+
+	notInit := false
+	for n, _ := range opmap {
+		if _, ok := mxentry[n]; !ok {
+			notInit = true
+			logger.Errorf("mxnet operator %v is not found in shared library", n.Value())
+		}
+	}
+
+	if notInit {
+		logger.Infof("available operators:")
+		for i := 0; i < int(ascn); i++ {
+			a := *(*C.AtomicSymbolCreator)(fu.Index(i, ascv))
+			var n *C.char
+			if e := C.MXSymbolGetAtomicSymbolName(a, &n); e != 0 {
+				panic(fmt.Sprintf("failed to gather name for symbol %x", a))
+			}
+			logger.Info(C.GoString(n))
+		}
+		panic("not initialized")
 	}
 }
 
@@ -238,7 +253,7 @@ func ComposeSymbol(handle SymbolHandle, name string, a ...SymbolHandle) error {
 	return nil
 }
 
-func ListArguments(handle SymbolHandle) ([]string, error) {
+func ListNames(handle SymbolHandle, outputs bool) ([]string, error) {
 	var (
 		i      int
 		e      C.int
@@ -247,13 +262,20 @@ func ListArguments(handle SymbolHandle) ([]string, error) {
 		r      []string
 	)
 
-	e = C.MXSymbolListArguments(
-		handle,
-		&out_nn,
-		&out_ns)
+	if outputs {
+		e = C.MXSymbolListOutputs(
+			handle,
+			&out_nn,
+			&out_ns)
+	} else {
+		e = C.MXSymbolListArguments(
+			handle,
+			&out_nn,
+			&out_ns)
+	}
 
 	if e != 0 {
-		return nil, fmt.Errorf("failed to request input names from mxnet: %v", mxLastError())
+		return nil, fmt.Errorf("failed to request output names from mxnet: %v", mxLastError())
 	}
 
 	name_at := func(i int) string {
@@ -269,7 +291,7 @@ func ListArguments(handle SymbolHandle) ([]string, error) {
 	return r, nil
 }
 
-func InferShapes(handle SymbolHandle, with map[string][]int) (map[string][]int, error) {
+func InferShapes(handle SymbolHandle, with map[string][]int, withOuts bool) (map[string][]int, error) {
 
 	if len(with) > MaxArgsCount {
 		return nil, fmt.Errorf("to many shapes in args")
@@ -328,14 +350,27 @@ func InferShapes(handle SymbolHandle, with map[string][]int) (map[string][]int, 
 	}
 
 	r := make(map[string][]int)
-	names, err := ListArguments(handle)
+	names, err := ListNames(handle, false)
 	if err != nil {
 		return nil, err
 	}
 
 	for i, name := range names {
-		if _, ok := with[name]; !ok {
-			r[name] = shape_at(i, in_sn, in_sd)
+		//if _, ok := with[name]; !ok {
+		r[name] = shape_at(i, in_sn, in_sd)
+		//}
+	}
+
+	if withOuts {
+		names, err = ListNames(handle, true)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, name := range names {
+			if _, ok := with[name]; !ok {
+				r[name] = shape_at(i, out_sn, out_sd)
+			}
 		}
 	}
 
@@ -353,12 +388,22 @@ func GroupSymbols(s []SymbolHandle) (SymbolHandle, error) {
 	return r, nil
 }
 
+func GetInternals(s SymbolHandle) (SymbolHandle, error) {
+	var o SymbolHandle
+	if e := C.MXSymbolGetInternals(s, &o); e != 0 {
+		return nil, fmt.Errorf("failed to get mxnet symbol internals: %v", mxLastError())
+	}
+	return o, nil
+}
+
 func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads []NDArrayHandle) (ExecutorHandle, error) {
 	var r ExecutorHandle
 
 	ga := make([]C.uint, len(args))
 	for i := range ga {
-		ga[i] = 1
+		if grads[i] != nil {
+			ga[i] = 1
+		}
 	}
 
 	e := C.MXExecutorBind(
@@ -425,12 +470,12 @@ func GetOutputs(exec ExecutorHandle) ([]NDArrayInfo, error) {
 	return r, nil
 }
 
-func Forward(exec ExecutorHandle, isTrain bool) error {
-	t := C.int(0)
-	if isTrain {
+func Forward(exec ExecutorHandle, train bool) error {
+	/*t := C.int(0)
+	if train {
 		t = C.int(1)
-	}
-	if e := C.MXExecutorForward(exec, t); e != 0 {
+	}*/
+	if e := C.MXExecutorForward(exec, C.int(0)); e != 0 {
 		return fmt.Errorf("failed on mxnet forward: %v", mxLastError())
 	}
 	return nil
@@ -455,4 +500,15 @@ func OptimizerUpdate(op MxnetOp, params, grads, state1 NDArrayHandle, state2 NDA
 		return fmt.Errorf("unresolved API entry %v", op.Value())
 	}
 	return nil
+}
+
+func ToJson(sym SymbolHandle) ([]byte, error) {
+	var s *C.char
+	if e := C.MXSymbolSaveToJSON(sym, &s); e != 0 {
+		return nil, fmt.Errorf("mxnet failed to stringify symbol: %v", mxLastError())
+	}
+	ln := int(C.strlen(s))
+	bs := make([]byte, ln)
+	C.memcpy(unsafe.Pointer(&bs[0]), unsafe.Pointer(s), C.ulong(ln))
+	return bs, nil
 }

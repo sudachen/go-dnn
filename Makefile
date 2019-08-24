@@ -11,7 +11,7 @@ build:
 run-tests:
 	mkdir -p github.com/sudachen
 	ln -sf $$(pwd) github.com/sudachen/go-dnn
-	go test -covermode=atomic -coverprofile=c.out -coverpkg=./... ./...
+	go test -v -covermode=atomic -coverprofile=c.out -coverpkg=./... ./...
 	cp c.out gocov.txt
 	sed -i -e 's:github.com/sudachen/go-dnn/::g' c.out
 	rm github.com/sudachen/go-dnn

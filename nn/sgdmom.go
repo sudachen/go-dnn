@@ -10,9 +10,6 @@ type SGD struct {
 
 func (opt *SGD) Init() (Optimizer, error) {
 	r := &implSGD{SGD: *opt, States: make(map[*mx.NDArray]*mx.NDArray)}
-	if r.Loss == nil {
-		r.Loss = L1Loss
-	}
 	if r.Lr == 0 {
 		r.Lr = 0.01
 	}
