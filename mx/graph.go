@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+type GraphIdentity [20]byte // SHA1
+
 type Loss interface {
 	// out, label => loss, sparse
 	// sparse means label dimensions reduced by last one
@@ -39,6 +41,8 @@ type Graph struct {
 
 	vars    map[string]capi.SymbolHandle
 	symbols map[*Symbol]capi.SymbolHandle
+
+	identity *GraphIdentity
 }
 
 func (g *Graph) symRelease() {
@@ -368,16 +372,27 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 }
 
 func (g *Graph) Initialize(inite func(*NDArray, string) error) error {
-	for name, param := range g.Params {
+	keys := fu.SortedDictKeys(g.Params)
+	for _, name := range keys {
+		param := g.Params[name]
 		if i, ok := g.Initializers[name]; ok && i != nil {
 			if err := i.Inite(param.Data); err != nil {
 				return err
 			}
-		} else {
+		} else if inite != nil {
 			if err := inite(param.Data, name); err != nil {
 				return err
 			}
-
+		} else {
+			var err error
+			if strings.Index(name, "_bias") >= 0 {
+				err = param.Data.Zeros().Err()
+			} else {
+				err = param.Data.Xavier(false, 2, 3).Err()
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	g.Initialized = true
@@ -386,13 +401,7 @@ func (g *Graph) Initialize(inite func(*NDArray, string) error) error {
 
 func (g *Graph) Forward(train bool) error {
 	if !g.Initialized {
-		err := g.Initialize(func(a *NDArray, name string) error {
-			if strings.Index(name, "_bias") >= 0 {
-				return a.Zeros().Err()
-			}
-			//return a.Uniform(0,1).Err()
-			return a.Xavier(false, 2, 1).Err()
-		})
+		err := g.Initialize(nil)
 		if err != nil {
 			return err
 		}

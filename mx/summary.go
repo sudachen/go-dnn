@@ -1,12 +1,33 @@
 package mx
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/google/logger"
 	"github.com/sudachen/go-dnn/mx/capi"
 	"strings"
 )
+
+func (identity GraphIdentity) String() string {
+	return hex.EncodeToString(identity[:])
+}
+
+func (g *Graph) Identity() GraphIdentity {
+	if g.identity == nil {
+		js, err := g.ToJson(false)
+		if err != nil {
+			panic(err.Error())
+		}
+		g.identity = &GraphIdentity{}
+		h := sha1.New()
+		h.Write(js)
+		bs := h.Sum(nil)
+		copy(g.identity[:], bs)
+	}
+	return *g.identity
+}
 
 func (g *Graph) ToJson(withLoss bool) ([]byte, error) {
 	out := g.symLast

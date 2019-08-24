@@ -512,3 +512,10 @@ func ToJson(sym SymbolHandle) ([]byte, error) {
 	C.memcpy(unsafe.Pointer(&bs[0]), unsafe.Pointer(s), C.ulong(ln))
 	return bs, nil
 }
+
+func RandomSeed(seed int) error {
+	if e := C.MXRandomSeed(C.int(seed)); e != 0 {
+		return fmt.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
+	}
+	return nil
+}

@@ -12,7 +12,7 @@ import (
 
 func GymPredict0(gym *nn.Gym, skip int) ([]float32, []float32, error) {
 	var (
-		ti  nn.BatchsIterator
+		ti  nn.GymBatchs
 		err error
 		r   [][]float32
 	)
@@ -34,7 +34,7 @@ func GymPredict0(gym *nn.Gym, skip int) ([]float32, []float32, error) {
 	return fu.Floor(r[0], 2), l[:len(l)/gym.BatchSize], nil
 }
 
-func f_gym() *nn.Gym {
+func f_gym(accuracy float32) *nn.Gym {
 	return &nn.Gym{
 		Optimizer: &nn.SGD{Lr: .04, Loss: &nn.LabelCrossEntropyLoss{}},
 		BatchSize: 64,
@@ -44,8 +44,23 @@ func f_gym() *nn.Gym {
 		Verbose:   nn.GymPrint,
 		Dataset:   &mnist.Dataset{},
 		AccFunc:   nn.ClassifyAccuracy,
-		Accuracy:  0.98,
+		Accuracy:  accuracy,
+		Seed:      42,
 	}
+}
+
+func f_gym_train(t *testing.T, accuracy float32, ctx mx.Context, nb nn.Block) {
+	gym := f_gym(accuracy)
+	err := gym.Bind(ctx, nb)
+	assert.NilError(t, err)
+	t.Logf("Network Identity: %v", gym.Network.Graph.Identity())
+	acc, err := gym.Train()
+	assert.NilError(t, err)
+	t.Logf("Accuracy: %v", acc)
+	assert.Assert(t, acc >= gym.Accuracy)
+	r, l, err := GymPredict0(gym, 0)
+	assert.NilError(t, err)
+	t.Log(r, l)
 }
 
 var mnist_Conv = nn.Connect(
@@ -53,38 +68,20 @@ var mnist_Conv = nn.Connect(
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
 	&nn.Convolution{Channels: 50, Kernel: mx.Dim(5, 5), Activation: nn.Tanh},
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
-	&nn.Flatten{},
+	//&nn.Flatten{},
 	&nn.FullyConnected{Size: 128, Activation: nn.Tanh},
 	&nn.FullyConnected{Size: 10, Activation: nn.Softmax})
 
 func Test_mnistConv_0(t *testing.T) {
-	gym := f_gym()
-	err := gym.Bind(mx.CPU, mnist_Conv)
-	assert.NilError(t, err)
-	acc, err := gym.Train()
-	assert.NilError(t, err)
-	t.Logf("Accuracy: %v", acc)
-	assert.Assert(t, acc >= 0.98)
-	r, l, err := GymPredict0(gym, 0)
-	assert.NilError(t, err)
-	t.Log(r, l)
+	f_gym_train(t, 0.98, mx.CPU, mnist_Conv)
 }
 
 var mnist_MLP = nn.Connect(
-	&nn.Flatten{},
+	//&nn.Flatten{},
 	&nn.FullyConnected{Size: 128, Activation: nn.ReLU},
 	&nn.FullyConnected{Size: 64, Activation: nn.ReLU},
 	&nn.FullyConnected{Size: 10, Activation: nn.Softmax})
 
 func Test_mnistMLP(t *testing.T) {
-	gym := f_gym()
-	err := gym.Bind(mx.CPU, mnist_MLP)
-	assert.NilError(t, err)
-	acc, err := gym.Train()
-	assert.NilError(t, err)
-	t.Logf("Accuracy: %v", acc)
-	assert.Assert(t, acc >= 0.98)
-	r, l, err := GymPredict0(gym, 0)
-	assert.NilError(t, err)
-	t.Log(r, l)
+	f_gym_train(t, 0.96, mx.CPU, mnist_MLP)
 }

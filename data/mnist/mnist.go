@@ -116,7 +116,7 @@ var testLabel = dsFile{"t10k-labels-idx1-ubyte.gz", "763e7fa3757d93b0cdec073cef0
 
 type Dataset struct{}
 
-func (d Dataset) Open(seed int64, batchSize int) (nn.BatchsIterator, nn.BatchsIterator, error) {
+func (d Dataset) Open(seed int, batchSize int) (nn.GymBatchs, nn.GymBatchs, error) {
 	for _, v := range []*dsFile{&trainData, &trainLabel, &testData, &testLabel} {
 		if err := v.Download(fullCacheDir); err != nil {
 			return nil, nil, err
@@ -147,8 +147,8 @@ type BatchsIterator struct {
 	DataBatch, LabelBatch []float32
 }
 
-func shuffle(bs []byte, ln int, count int, seed int64) {
-	rnd := rand.New(rand.NewSource(seed))
+func shuffle(bs []byte, ln int, count int, seed int) {
+	rnd := rand.New(rand.NewSource(int64(seed)))
 	if ln > 1 {
 		tmp := make([]byte, ln)
 		rnd.Shuffle(count, func(i, j int) {
@@ -165,7 +165,7 @@ func shuffle(bs []byte, ln int, count int, seed int64) {
 	}
 }
 
-func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int64) error {
+func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
 	var (
 		data, label []byte
 		err         error

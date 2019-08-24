@@ -5,9 +5,9 @@ import "github.com/sudachen/go-dnn/mx"
 type Network struct {
 	Graph *mx.Graph
 
-	BatchLen    int
+	BatchSize   int
 	Initialized bool
-	Optimizer
+	Optimizer   Optimizer
 }
 
 func (n *Network) Release() {
@@ -37,7 +37,7 @@ func Bind(ctx mx.Context, nb Block, input mx.Dimension, opt OptimizerConf) (*Net
 	if err != nil {
 		return nil, err
 	}
-	f := &Network{Graph: g, BatchLen: input.Shape[0], Optimizer: opti}
+	f := &Network{Graph: g, BatchSize: input.Shape[0], Optimizer: opti}
 	return f, nil
 }
 
@@ -59,9 +59,9 @@ func (f *Network) Predict(data interface{}) ([][]float32, error) {
 	if err := f.Predict1(data, out); err != nil {
 		return nil, err
 	}
-	r := make([][]float32, f.BatchLen)
-	stride := len(out) / f.BatchLen
-	for i := 0; i < f.BatchLen; i++ {
+	r := make([][]float32, f.BatchSize)
+	stride := len(out) / f.BatchSize
+	for i := 0; i < f.BatchSize; i++ {
 		r[i] = out[i*stride : (i+1)*stride]
 	}
 	return r, nil

@@ -149,9 +149,28 @@ func f_Random(ctx mx.Context, t *testing.T) {
 }
 
 func Test_Random(t *testing.T) {
+	mx.RandomSeed(42)
 	f_Random(mx.CPU, t)
 	if test_on_GPU {
+		mx.RandomSeed(42)
 		f_Random(mx.GPU0, t)
+	}
+}
+
+func f_Xavier(ctx mx.Context, t *testing.T) {
+	t.Logf("Random_Uniform on %v", ctx)
+	a := ctx.Array(mx.Float32, mx.Dim(1, 3)).Xavier(false, 2, 3)
+	defer a.Release()
+	assert.NilError(t, a.Err())
+	t.Log(a.ValuesF32())
+}
+
+func Test_Xavier(t *testing.T) {
+	mx.RandomSeed(42)
+	f_Xavier(mx.CPU, t)
+	if test_on_GPU {
+		mx.RandomSeed(42)
+		f_Xavier(mx.GPU0, t)
 	}
 }
 

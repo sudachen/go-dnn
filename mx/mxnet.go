@@ -17,3 +17,7 @@ func LibVersion() VersionType {
 func GpuCount() int {
 	return capi.GpuCount
 }
+
+func RandomSeed(seed int) {
+	_ = capi.RandomSeed(seed)
+}
