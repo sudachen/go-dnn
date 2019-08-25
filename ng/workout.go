@@ -1,4 +1,4 @@
-package nn
+package ng
 
 import (
 	"github.com/sudachen/go-dnn/mx"

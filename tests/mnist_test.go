@@ -4,15 +4,16 @@ import (
 	"github.com/sudachen/go-dnn/data/mnist"
 	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx"
+	"github.com/sudachen/go-dnn/ng"
 	"github.com/sudachen/go-dnn/nn"
 	"gotest.tools/assert"
 	"testing"
 	"time"
 )
 
-func GymPredict0(gym *nn.Gym, skip int) ([]float32, []float32, error) {
+func GymPredict0(gym *ng.Gym, skip int) ([]float32, []float32, error) {
 	var (
-		ti  nn.GymBatchs
+		ti  ng.GymBatchs
 		err error
 		r   [][]float32
 	)
@@ -34,16 +35,16 @@ func GymPredict0(gym *nn.Gym, skip int) ([]float32, []float32, error) {
 	return fu.Floor(r[0], 2), l[:len(l)/gym.BatchSize], nil
 }
 
-func f_gym(accuracy float32) *nn.Gym {
-	return &nn.Gym{
+func f_gym(accuracy float32) *ng.Gym {
+	return &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001, Loss: &nn.LabelCrossEntropyLoss{}},
 		BatchSize: 64,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,
 		Sprint:    5 * time.Second,
-		Verbose:   nn.GymPrint,
+		Verbose:   ng.Printing,
 		Dataset:   &mnist.Dataset{},
-		AccFunc:   nn.ClassifyAccuracy,
+		AccFunc:   ng.ClassifyAccuracy,
 		Accuracy:  accuracy,
 		Seed:      42,
 	}

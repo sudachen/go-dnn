@@ -7,7 +7,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/sudachen/go-dnn/nn"
+	"github.com/sudachen/go-dnn/ng"
 	"io"
 	"math/rand"
 	"net/http"
@@ -116,7 +116,7 @@ var testLabel = dsFile{"t10k-labels-idx1-ubyte.gz", "763e7fa3757d93b0cdec073cef0
 
 type Dataset struct{}
 
-func (d Dataset) Open(seed int, batchSize int) (nn.GymBatchs, nn.GymBatchs, error) {
+func (d Dataset) Open(seed int, batchSize int) (ng.GymBatchs, ng.GymBatchs, error) {
 	for _, v := range []*dsFile{&trainData, &trainLabel, &testData, &testLabel} {
 		if err := v.Download(fullCacheDir); err != nil {
 			return nil, nil, err
