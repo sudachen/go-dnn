@@ -42,7 +42,7 @@ func Test_mnistConv0(t *testing.T) {
 
 	err := gym.Bind(mx.CPU, mnistConv0)
 	assert.NilError(t, err)
-	t.Logf("Network Identity: %v", gym.Network.Graph.Identity())
+	t.Logf("Network Identity: %v", gym.Network.Identity())
 	acc, err := gym.Train()
 	assert.NilError(t, err)
 	t.Logf("Accuracy: %v", acc)
