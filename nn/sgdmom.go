@@ -13,9 +13,6 @@ func (opt *SGD) Init() (Optimizer, error) {
 	if r.Lr == 0 {
 		r.Lr = 0.01
 	}
-	if r.Mom == 0 {
-		r.Mom = 0.8
-	}
 	return r, nil
 }
 
@@ -31,14 +28,17 @@ func (opt *implSGD) Release() {
 }
 
 func (opt *implSGD) Update(params *mx.NDArray, grads *mx.NDArray) error {
-	st, ok := opt.States[params]
-	if !ok {
-		if st = params.NewLikeThis().Zeros(); st.Err() != nil {
-			return st.Err()
+	if opt.Mom != 0 {
+		st, ok := opt.States[params]
+		if !ok {
+			if st = params.NewLikeThis().Zeros(); st.Err() != nil {
+				return st.Err()
+			}
+			opt.States[params] = st
 		}
-		opt.States[params] = st
+		return mx.SgdMomUpdate(params, grads, st, opt.Lr, opt.Mom, 0)
 	}
-	return mx.SgdMomUpdate(params, grads, st, opt.Lr, opt.Mom, 0)
+	return mx.SgdUpdate(params, grads, opt.Lr, 0)
 }
 
 func (opt *implSGD) GetLoss() mx.Loss {

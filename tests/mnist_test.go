@@ -36,7 +36,7 @@ func GymPredict0(gym *nn.Gym, skip int) ([]float32, []float32, error) {
 
 func f_gym(accuracy float32) *nn.Gym {
 	return &nn.Gym{
-		Optimizer: &nn.SGD{Lr: .04, Loss: &nn.LabelCrossEntropyLoss{}},
+		Optimizer: &nn.Adam{Lr: .001, Loss: &nn.LabelCrossEntropyLoss{}},
 		BatchSize: 64,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,

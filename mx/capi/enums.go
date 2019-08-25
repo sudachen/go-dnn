@@ -107,6 +107,7 @@ const (
 	OpPowerScalar
 	OpPowerScalarR
 	OpSgdUpdate
+	OpSgdMomUpdate
 	OpAdamUpdate
 	OpLogSoftmax
 	OpSoftmax
@@ -148,7 +149,8 @@ var opmap = map[MxnetOp]string{
 	OpZeros:          "_zeros",
 	OpPowerScalar:    "_power_scalar",
 	OpPowerScalarR:   "_rpower_scalar",
-	OpSgdUpdate:      "sgd_mom_update",
+	OpSgdUpdate:      "sgd_update",
+	OpSgdMomUpdate:   "sgd_mom_update",
 	OpAdamUpdate:     "adam_update",
 	OpLogSoftmax:     "log_softmax",
 	OpSoftmax:        "softmax",

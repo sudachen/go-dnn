@@ -4,10 +4,18 @@ import "github.com/sudachen/go-dnn/mx/capi"
 
 func SgdMomUpdate(params, grads, mom *NDArray, lr, momentum, wd float32) error {
 	return capi.OptimizerUpdate(
-		capi.OpSgdUpdate,
+		capi.OpSgdMomUpdate,
 		params.handle, grads.handle, mom.handle, nil,
 		capi.KeyLr, lr,
 		capi.KeyMomentum, momentum,
+		capi.KeyWd, wd)
+}
+
+func SgdUpdate(params, grads *NDArray, lr, wd float32) error {
+	return capi.OptimizerUpdate(
+		capi.OpSgdUpdate,
+		params.handle, grads.handle, nil, nil,
+		capi.KeyLr, lr,
 		capi.KeyWd, wd)
 }
 
