@@ -50,3 +50,35 @@ func Test_mnistConv0(t *testing.T) {
 }
 
 ```
+```text
+=== RUN   Test_mnistConv0
+Symbol           | Operation           | Output        |  Params #
+------------------------------------------------------------------
+_input           | null                | (64,1,28,28)  |         0
+Convolution01    | Convolution((5,5)/) | (64,20,24,24) |       520
+sym05            | Activation(tanh)    | (64,20,24,24) |         0
+sym06            | Pooling(max)        | (64,20,12,12) |         0
+Convolution02    | Convolution((5,5)/) | (64,50,8,8)   |     25050
+sym07            | Activation(tanh)    | (64,50,8,8)   |         0
+sym08            | Pooling(max)        | (64,50,4,4)   |         0
+FullyConnected03 | FullyConnected      | (64,128)      |    102528
+sym09            | Activation(tanh)    | (64,128)      |         0
+FullyConnected04 | FullyConnected      | (64,10)       |      1290
+sym10            | SoftmaxActivation() | (64,10)       |         0
+sym11            | BlockGrad           | (64,10)       |         0
+sym12            | make_loss           | (64,10)       |         0
+sym13            | pick                | (64,1)        |         0
+sym14            | log                 | (64,1)        |         0
+sym15            | _mul_scalar         | (64,1)        |         0
+sym16            | mean                | (1)           |         0
+sym17            | make_loss           | (1)           |         0
+------------------------------------------------------------------
+Total params: 129388
+Epoch 0, batch 499, avg loss: 0.1657214980359695
+Epoch 0, accuracy: 0.9807692
+Achieved reqired accuracy 0.98
+--- PASS: Test_mnistConv0 (10.63s)
+    mnist_conv_test.go:38: Network Identity: 62b2117bed4ef63412495b6dfe582a065759cb17
+    mnist_conv_test.go:41: Accuracy: 0.9807692
+PASS
+```
