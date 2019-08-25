@@ -59,13 +59,13 @@ type array2_ds_t struct {
 }
 
 var array2_ds = []array2_ds_t{
-	array2_ds_t{mx.Float32, []interface{}{.1, int(2), int64(3), float64(4), .0005}},
-	array2_ds_t{mx.Int32, []interface{}{.1, int(2), int64(3), float64(4), .0005}},
-	array2_ds_t{mx.Uint8, []int{1, 2, 3, 4, 5}},
-	array2_ds_t{mx.Int8, []int{1, 2, 3, 4, 5}},
-	array2_ds_t{mx.Int64, []int{1, 2, 3, 4, 5}},
+	{mx.Float32, []interface{}{.1, int(2), int64(3), float64(4), .0005}},
+	{mx.Int32, []interface{}{.1, int(2), int64(3), float64(4), .0005}},
+	{mx.Uint8, []int{1, 2, 3, 4, 5}},
+	{mx.Int8, []int{1, 2, 3, 4, 5}},
+	{mx.Int64, []int{1, 2, 3, 4, 5}},
 	// Float16 has a round error so using integer values only
-	array2_ds_t{mx.Float16, []interface{}{1, int(2), int64(3), float64(4), 5}},
+	{mx.Float16, []interface{}{1, int(2), int64(3), float64(4), 5}},
 }
 
 func compare(t *testing.T, data, result interface{}, dt mx.Dtype, no int) bool {

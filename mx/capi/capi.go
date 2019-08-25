@@ -121,7 +121,7 @@ func init() {
 	}
 
 	notInit := false
-	for n, _ := range opmap {
+	for n := range opmap {
 		if _, ok := mxentry[n]; !ok {
 			notInit = true
 			logger.Errorf("mxnet operator %v is not found in shared library", n.Value())
@@ -471,11 +471,11 @@ func GetOutputs(exec ExecutorHandle) ([]NDArrayInfo, error) {
 }
 
 func Forward(exec ExecutorHandle, train bool) error {
-	/*t := C.int(0)
+	t := C.int(0)
 	if train {
 		t = C.int(1)
-	}*/
-	if e := C.MXExecutorForward(exec, C.int(0)); e != 0 {
+	}
+	if e := C.MXExecutorForward(exec, t); e != 0 {
 		return fmt.Errorf("failed on mxnet forward: %v", mxLastError())
 	}
 	return nil
