@@ -3,7 +3,7 @@ package nn
 import "github.com/sudachen/go-dnn/mx"
 
 type Network struct {
-	Graph *mx.Graph
+	*mx.Graph
 
 	BatchSize   int
 	Initialized bool
