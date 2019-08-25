@@ -128,6 +128,7 @@ func (gym *Gym) Bind(ctx mx.Context, nb Block) error {
 			gym.seed = gym.store.Seed()
 		}
 
+		gym.Network.Graph.Ctx.RandomSeed(gym.seed)
 		if err = gym.store.InitParams(gym.Network); err != nil {
 			return err
 		}
