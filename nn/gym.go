@@ -132,7 +132,7 @@ func (gym *Gym) Bind(ctx mx.Context, nb Block) error {
 			return err
 		}
 	} else {
-		mx.RandomSeed(gym.seed)
+		gym.Network.Graph.Ctx.RandomSeed(gym.seed)
 		if err = gym.Network.Graph.Initialize(nil); err != nil {
 			return err
 		}
@@ -228,7 +228,7 @@ func (gym *Gym) Train() (float32, error) {
 		sprint := gym.sprintOn()
 		tm := sprint(0)
 
-		mx.RandomSeed(gym.seed + epoch + 2)
+		gym.Network.Graph.Ctx.RandomSeed(gym.seed + epoch + 2)
 		acc, count, batchs = 0, 0, 0
 		for li.Next() {
 			batchs++

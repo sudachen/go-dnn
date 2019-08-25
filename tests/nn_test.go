@@ -32,6 +32,8 @@ func Test_nn1_Forward(t *testing.T) {
 	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
 	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 3)
 
+	mx.CPU.RandomSeed(42)
+
 	for n := 0; n < len(input); n++ {
 		assert.NilError(t, err)
 		r, err := net.Predict(input[n : n+1])
@@ -65,6 +67,8 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
 	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
 	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
+
+	mx.CPU.RandomSeed(42)
 
 	for n := 0; n < 200; n++ {
 		assert.NilError(t, err)

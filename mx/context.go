@@ -1,6 +1,9 @@
 package mx
 
-import "fmt"
+import (
+	"fmt"
+	"github.com/sudachen/go-dnn/mx/capi"
+)
 
 type Context int
 
@@ -42,4 +45,7 @@ func (c Context) String() string {
 	return "InvalidContext"
 }
 
-var S = 1
+func (c Context) RandomSeed(seed int) {
+	_ = capi.ContextRandomSeed(seed,c.DevType(),c.DevNo())
+}
+

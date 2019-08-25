@@ -519,3 +519,10 @@ func RandomSeed(seed int) error {
 	}
 	return nil
 }
+
+func ContextRandomSeed(seed, devType, devNo int) error {
+	if e := C.MXRandomSeedContext(C.int(seed),C.int(devType),C.int(devNo)); e != 0 {
+		return fmt.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
+	}
+	return nil
+}
