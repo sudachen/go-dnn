@@ -92,4 +92,3 @@ func (gym *Gym) Train() (float32, error) {
 
 	return float32(acc), nil
 }
-

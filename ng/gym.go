@@ -101,4 +101,3 @@ func (gym *Gym) finishEpoch(accuracy float64) error {
 	}
 	return nil
 }
-

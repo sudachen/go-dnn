@@ -44,7 +44,7 @@ func f_gym(accuracy float32) *ng.Gym {
 		Sprint:    5 * time.Second,
 		Verbose:   ng.Printing,
 		Dataset:   &mnist.Dataset{},
-		AccFunc:   ng.ClassifyAccuracy,
+		AccFunc:   ng.Classification,
 		Accuracy:  accuracy,
 		Seed:      42,
 	}

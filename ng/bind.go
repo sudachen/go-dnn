@@ -56,4 +56,3 @@ func (gym *Gym) Bind(ctx mx.Context, nb nn.Block) error {
 
 	return nil
 }
-

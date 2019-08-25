@@ -46,6 +46,5 @@ func (c Context) String() string {
 }
 
 func (c Context) RandomSeed(seed int) {
-	_ = capi.ContextRandomSeed(seed,c.DevType(),c.DevNo())
+	_ = capi.ContextRandomSeed(seed, c.DevType(), c.DevNo())
 }
-

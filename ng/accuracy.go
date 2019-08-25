@@ -2,7 +2,7 @@ package ng
 
 import "fmt"
 
-func ClassifyAccuracy(data, label []float32) (bool, error) {
+func Classification(data, label []float32) (bool, error) {
 	if len(label) != 1 {
 		return false, fmt.Errorf("Classify must have label parameter as slice with one value")
 	}
@@ -18,5 +18,3 @@ func ClassifyAccuracy(data, label []float32) (bool, error) {
 	}
 	return maxindex == index, nil
 }
-
-
