@@ -35,4 +35,3 @@ func Test_mnistMLP0(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, acc >= gym.Accuracy)
 }
-

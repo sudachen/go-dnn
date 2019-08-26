@@ -71,12 +71,12 @@ func (s store) EpochsCount() int {
 	return 0
 }
 
-func (s store) AddEpoch(i int) (epoch,error) {
+func (s store) AddEpoch(i int) (epoch, error) {
 	if s.GymStore != nil {
 		ep, e := s.GymStore.AddEpoch(i)
 		return epoch{ep}, e
 	}
-	return epoch{nil},nil
+	return epoch{nil}, nil
 }
 
 func (s epoch) WriteBatchLoss(loss float64) error {

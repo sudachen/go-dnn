@@ -91,7 +91,7 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 }
 
 func Test_nn1(t *testing.T) {
-	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, nil,  &nn.L0Loss{})
+	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, nil, &nn.L0Loss{})
 	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, &nn.Const{0}, &nn.L2Loss{})
 	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Const{.1}, &nn.L0Loss{})
 	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Xavier{Gaussian: true, Magnitude: 0.5}, &nn.L2Loss{})

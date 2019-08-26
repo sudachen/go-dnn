@@ -12,20 +12,28 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout ...GymWorkout) (float
 		err           error
 		loss, acc     float64
 		batchs, count int
-		net *nn.Network
-		st store
-		ep epoch
-		seed int
-		wo GymWorkout
-		opt nn.Optimizer
+		net           *nn.Network
+		st            store
+		ep            epoch
+		seed          int
+		wo            GymWorkout
+		opt           nn.Optimizer
 	)
+
+	defer func() {
+		if opt != nil {
+			opt.Release()
+		}
+		if net != nil {
+			net.Release()
+		}
+	}()
 
 	input := gym.Input.Push(gym.BatchSize)
 
 	if net, err = nn.Bind(ctx, nb, input, gym.Loss); err != nil {
-		return 0,err
+		return 0, err
 	}
-	defer net.Release()
 
 	gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity()))
 
@@ -37,13 +45,14 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout ...GymWorkout) (float
 		wo = workout[0]
 	}
 
-	if st, seed, err = gym.init(net,wo); err != nil {
+	if st, seed, err = gym.init(net, wo); err != nil {
 		return 0, err
 	}
 
 	if li, ti, err = gym.Dataset.Open(seed+1, gym.BatchSize); err != nil {
 		return 0, err
 	}
+	defer func() { _ = li.Close(); _ = ti.Close() }()
 
 	lf := make([]float32, net.Loss.Dim().Total())
 
@@ -94,6 +103,9 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout ...GymWorkout) (float
 				}
 			}
 		}
+
+		opt.Release()
+		opt = nil
 
 		if err = ti.Reset(); err != nil {
 			return 0, err

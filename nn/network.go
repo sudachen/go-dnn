@@ -15,8 +15,8 @@ func (n *Network) Release() {
 
 func Bind(ctx mx.Context, nb Block, input mx.Dimension, loss mx.Loss) (*Network, error) {
 	var (
-		err  error
-		sym  *mx.Symbol
+		err error
+		sym *mx.Symbol
 	)
 	if sym, _, err = nb.Combine(mx.Input(), nil); err != nil {
 		return nil, err

@@ -22,7 +22,7 @@ func Test_mnistConv0(t *testing.T) {
 
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
-		Loss: 	   &nn.LabelCrossEntropyLoss{},
+		Loss:      &nn.LabelCrossEntropyLoss{},
 		BatchSize: 64,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,

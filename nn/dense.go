@@ -41,11 +41,3 @@ func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, [
 	out = out
 	return out, g, nil
 }
-
-type SoftmaxOutput struct {
-	MultiOutput bool
-}
-
-func (ly *SoftmaxOutput) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
-	return mx.SoftmaxOutput(in, mx.Var("_label", mx.Nograd), ly.MultiOutput), g, nil
-}

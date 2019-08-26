@@ -59,7 +59,7 @@ func (g *Graph) symRelease() {
 }
 
 func (g *Graph) Release() {
-	runtime.SetFinalizer(g,nil)
+	runtime.SetFinalizer(g, nil)
 
 	g.symRelease()
 	if g.symLast != g.symOut {
