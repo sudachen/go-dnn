@@ -41,7 +41,7 @@ func Test_mnistConv0(t *testing.T) {
 		Seed:      42,
 	}
 
-	acc, err := gym.Train(mx.CPU, mnistConv0)
+	acc, _, err := gym.Train(mx.CPU, mnistConv0, nil)
 	assert.NilError(t, err)
 	assert.Assert(t, acc >= gym.Accuracy)
 }
