@@ -2,6 +2,7 @@ package tests
 
 import (
 	"github.com/sudachen/go-dnn/data/mnist"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/ng"
 	"github.com/sudachen/go-dnn/nn"
@@ -31,7 +32,26 @@ func Test_mnistMLP0(t *testing.T) {
 		Seed:      42,
 	}
 
-	acc, err := gym.Train(mx.CPU, mnistMLP0)
+	acc, params, err := gym.Train(mx.CPU, mnistMLP0, nil)
 	assert.NilError(t, err)
+	assert.Assert(t, acc >= gym.Accuracy)
+
+	net1, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(16, 1, 28, 28), nil)
+	assert.NilError(t, err)
+	defer net1.Release()
+	_ = net1.PrintSummary(false)
+	err = params.Setup(net1, false)
+	assert.NilError(t, err)
+	acc, err = ng.Measure(net1, &mnist.Dataset{}, ng.Classification, ng.Printing)
+	assert.Assert(t, acc >= gym.Accuracy)
+	err = params.Save(fu.CacheFile("tests/mnistMLP0.params"))
+	assert.NilError(t, err)
+
+	params2, err := nn.LoadParams(fu.CacheFile("tests/mnistMLP0.params"))
+	assert.NilError(t, err)
+	net2, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(16, 1, 28, 28), nil)
+	err = params2.Setup(net2, false)
+	assert.NilError(t, err)
+	acc, err = ng.Measure(net2, &mnist.Dataset{}, ng.Classification, ng.Printing)
 	assert.Assert(t, acc >= gym.Accuracy)
 }

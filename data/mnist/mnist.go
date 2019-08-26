@@ -7,26 +7,16 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/ng"
 	"io"
-	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
 )
 
 const baseURL = "https://apache-mxnet.s3-accelerate.dualstack.amazonaws.com/gluon/dataset/mnist/"
-const cacheDir = ".cache/go-dnn/datasets/mnist"
-
-var fullCacheDir string
-
-func init() {
-	if u, ok := os.LookupEnv("HOME"); ok {
-		fullCacheDir, _ = filepath.Abs(filepath.Join(u, cacheDir))
-	} else {
-		fullCacheDir, _ = filepath.Abs(cacheDir)
-	}
-}
+const cacheDir = "datasets/mnist"
 
 type dsFile struct {
 	Name string
@@ -118,7 +108,7 @@ type Dataset struct{}
 
 func (d Dataset) Open(seed int, batchSize int) (ng.GymBatchs, ng.GymBatchs, error) {
 	for _, v := range []*dsFile{&trainData, &trainLabel, &testData, &testLabel} {
-		if err := v.Download(fullCacheDir); err != nil {
+		if err := v.Download(fu.CacheDir(cacheDir)); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -137,32 +127,14 @@ func (d Dataset) Open(seed int, batchSize int) (ng.GymBatchs, ng.GymBatchs, erro
 }
 
 type BatchsIterator struct {
-	BatchSize       int
-	DataBs, LabelBs []byte
-	Count, Batchs   int
-	DataLength      int
-	LabelLength     int
-	Index           int
-
+	BatchSize             int
+	DataBs, LabelBs       []byte
+	Count, Batchs         int
+	DataLength            int
+	LabelLength           int
+	Index                 int
+	RndIndex              []int
 	DataBatch, LabelBatch []float32
-}
-
-func shuffle(bs []byte, ln int, count int, seed int) {
-	rnd := rand.New(rand.NewSource(int64(seed)))
-	if ln > 1 {
-		tmp := make([]byte, ln)
-		rnd.Shuffle(count, func(i, j int) {
-			copy(tmp, bs[i*ln:i*ln+ln])
-			copy(bs[i*ln:i*ln+ln], bs[j*ln:j*ln+ln])
-			copy(bs[j*ln:j*ln+ln], tmp)
-		})
-	} else {
-		rnd.Shuffle(count, func(i, j int) {
-			b := bs[i]
-			bs[i] = bs[j]
-			bs[j] = b
-		})
-	}
 }
 
 func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
@@ -171,13 +143,13 @@ func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
 		err         error
 	)
 
-	if data, err = dataFile.Load(fullCacheDir); err != nil {
+	if data, err = dataFile.Load(fu.CacheDir(cacheDir)); err != nil {
 		return err
 	}
 	if 0x00000803 != binary.BigEndian.Uint32(data) {
 		return fmt.Errorf("not mnist data file")
 	}
-	if label, err = labelFile.Load(fullCacheDir); err != nil {
+	if label, err = labelFile.Load(fu.CacheDir(cacheDir)); err != nil {
 		return err
 	}
 	if 0x00000801 != binary.BigEndian.Uint32(label) {
@@ -194,10 +166,9 @@ func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
 	b.DataLength = int(binary.BigEndian.Uint32(data[8:12]) * binary.BigEndian.Uint32(data[12:16]))
 	b.LabelLength = 1
 
-	//if seed != 0 {
-	//	shuffle(b.LabelBs,b.LabelLength,b.Batchs,seed)
-	//	shuffle(b.DataBs,b.DataLength,b.Batchs,seed+1)
-	//}
+	if seed != 0 {
+		b.RndIndex = fu.RandomIndex(b.Batchs, seed)
+	}
 
 	b.LabelBatch = make([]float32, b.LabelLength*b.BatchSize)
 	b.DataBatch = make([]float32, b.DataLength*b.BatchSize)
@@ -213,14 +184,18 @@ func (b *BatchsIterator) Skip(skip int) error {
 }
 
 func (b *BatchsIterator) Next() bool {
-	if b.Index < b.Batchs {
+	idx := b.Index
+	if idx < b.Batchs {
+		if b.RndIndex != nil {
+			idx = b.RndIndex[idx]
+		}
 		width := b.DataLength * b.BatchSize
-		src := b.DataBs[b.Index*width : (b.Index+1)*width]
+		src := b.DataBs[idx*width : (idx+1)*width]
 		for i := 0; i < width; i++ {
 			b.DataBatch[i] = float32(src[i]) / 255
 		}
 		width = b.LabelLength * b.BatchSize
-		src = b.LabelBs[b.Index*width : (b.Index+1)*width]
+		src = b.LabelBs[idx*width : (idx+1)*width]
 		for i := 0; i < width; i++ {
 			b.LabelBatch[i] = float32(src[i])
 		}
@@ -236,10 +211,6 @@ func (b *BatchsIterator) Data() []float32 {
 
 func (b *BatchsIterator) Label() []float32 {
 	return b.LabelBatch
-}
-
-func (b *BatchsIterator) Notes() []string {
-	return nil
 }
 
 func (b *BatchsIterator) Close() error {

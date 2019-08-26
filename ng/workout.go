@@ -16,10 +16,9 @@ type S3 struct {
 }
 
 type Workout struct {
-	Id       string
-	Path     string
-	Seed     int64
-	Continue bool
+	Name string
+	Path string
+	Seed int64
 
 	Inherit string
 	Input   mx.Dimension

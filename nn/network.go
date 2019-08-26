@@ -1,12 +1,13 @@
 package nn
 
-import "github.com/sudachen/go-dnn/mx"
+import (
+	"github.com/sudachen/go-dnn/mx"
+)
 
 type Network struct {
 	*mx.Graph
 
-	BatchSize   int
-	Initialized bool
+	BatchSize int
 }
 
 func (n *Network) Release() {
@@ -18,6 +19,7 @@ func Bind(ctx mx.Context, nb Block, input mx.Dimension, loss mx.Loss) (*Network,
 		err error
 		sym *mx.Symbol
 	)
+	mx.ResetSymbolId(0)
 	if sym, _, err = nb.Combine(mx.Input(), nil); err != nil {
 		return nil, err
 	}
@@ -57,8 +59,8 @@ func (f *Network) Predict(data interface{}) ([][]float32, error) {
 
 type AccFunc = func(data, label []float32) (bool, error)
 
-func (f *Network) Test(data, label []float32, accfunc AccFunc) (float64, error) {
-	var acc float64 = 0
+func (f *Network) Test(data, label []float32, accfunc AccFunc) (float32, error) {
+	var acc float32 = 0
 	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
 	if err := f.Predict1(data, out); err != nil {
 		return 0, err
@@ -75,7 +77,7 @@ func (f *Network) Test(data, label []float32, accfunc AccFunc) (float64, error) 
 			acc += 1
 		}
 	}
-	return acc / float64(count), nil
+	return acc / float32(count), nil
 }
 
 func (f *Network) Train(data interface{}, label interface{}, opt Optimizer) error {

@@ -29,14 +29,19 @@ type Gym struct {
 	Accuracy  float32
 	Workout   GymWorkout
 	Seed      int
+	Continue  bool
+}
+
+func verbose(s string, verbosity Verbosity) {
+	if verbosity == Printing {
+		fmt.Println(s)
+	} else if verbosity == Logging {
+		logger.Info(s)
+	}
 }
 
 func (gym *Gym) verbose(s string) {
-	if gym.Verbose == Printing {
-		fmt.Println(s)
-	} else if gym.Verbose == Logging {
-		logger.Info(s)
-	}
+	verbose(s, gym.Verbose)
 }
 
 func (gym *Gym) sprintOn() func(int64) int64 {
@@ -56,32 +61,32 @@ func (gym *Gym) sprintOn() func(int64) int64 {
 	}
 }
 
-type store struct {
-	GymStore
+type state struct {
+	GymState
 }
 
 type epoch struct {
 	GymEpoch
 }
 
-func (s store) EpochsCount() int {
-	if s.GymStore != nil {
-		return s.GymStore.EpochsCount()
+func (s state) EpochsCount() int {
+	if s.GymState != nil {
+		return s.GymState.EpochsCount()
 	}
 	return 0
 }
 
-func (s store) AddEpoch(i int) (epoch, error) {
-	if s.GymStore != nil {
-		ep, e := s.GymStore.AddEpoch(i)
+func (s state) AddEpoch(i int) (epoch, error) {
+	if s.GymState != nil {
+		ep, e := s.GymState.AddEpoch(i)
 		return epoch{ep}, e
 	}
 	return epoch{nil}, nil
 }
 
-func (s epoch) WriteBatchLoss(loss float64) error {
+func (s epoch) WriteBatchLoss(loss float32) error {
 	if s.GymEpoch != nil {
-		return s.GymEpoch.WriteBatchLoss(float32(loss))
+		return s.GymEpoch.WriteBatchLoss(loss)
 	}
 	return nil
 }
@@ -93,9 +98,9 @@ func (s epoch) Commit() error {
 	return nil
 }
 
-func (s epoch) Finish(accuracy float64, net *nn.Network) error {
+func (s epoch) Finish(accuracy float32, params nn.Params) error {
 	if s.GymEpoch != nil {
-		err := s.GymEpoch.Finish(float32(accuracy), net)
+		err := s.GymEpoch.Finish(accuracy, params)
 		if err != nil {
 			return err
 		}

@@ -24,6 +24,10 @@ func NextSymbolId() int {
 	return _symbolId
 }
 
+func ResetSymbolId(first int) {
+	_symbolId = first
+}
+
 type Symbol struct {
 	op    capi.MxnetOp
 	value string
