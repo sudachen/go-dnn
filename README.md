@@ -28,7 +28,8 @@ var mnistConv0 = nn.Connect(
 func Test_mnistConv0(t *testing.T) {
 
 	gym := &ng.Gym{
-		Optimizer: &nn.Adam{Lr: .001, Loss: &nn.LabelCrossEntropyLoss{}},
+		Optimizer: &nn.Adam{Lr: .001},
+		Loss: 	   &nn.LabelCrossEntropyLoss{},
 		BatchSize: 64,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,
@@ -40,12 +41,8 @@ func Test_mnistConv0(t *testing.T) {
 		Seed:      42,
 	}
 
-	err := gym.Bind(mx.CPU, mnistConv0)
+	acc, err := gym.Train(mx.CPU, mnistConv0)
 	assert.NilError(t, err)
-	t.Logf("Network Identity: %v", gym.Network.Identity())
-	acc, err := gym.Train()
-	assert.NilError(t, err)
-	t.Logf("Accuracy: %v", acc)
 	assert.Assert(t, acc >= gym.Accuracy)
 }
 
@@ -73,12 +70,8 @@ sym15            | _mul_scalar         | (64,1)        |         0
 sym16            | mean                | (1)           |         0
 sym17            | make_loss           | (1)           |         0
 ------------------------------------------------------------------
-Total params: 129388
-Epoch 0, batch 499, avg loss: 0.1657214980359695
+Epoch 0, batch 552, avg loss: 0.1568979772442169
 Epoch 0, accuracy: 0.9807692
 Achieved reqired accuracy 0.98
---- PASS: Test_mnistConv0 (10.63s)
-    mnist_conv_test.go:38: Network Identity: 62b2117bed4ef63412495b6dfe582a065759cb17
-    mnist_conv_test.go:41: Accuracy: 0.9807692
-PASS
+--- PASS: Test_mnistConv0 (10.73s)
 ```

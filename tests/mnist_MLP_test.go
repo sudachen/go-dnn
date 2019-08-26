@@ -18,7 +18,8 @@ var mnistMLP0 = nn.Connect(
 func Test_mnistMLP0(t *testing.T) {
 
 	gym := &ng.Gym{
-		Optimizer: &nn.Adam{Lr: .001, Loss: &nn.LabelCrossEntropyLoss{}},
+		Optimizer: &nn.Adam{Lr: .001},
+		Loss:      &nn.LabelCrossEntropyLoss{},
 		BatchSize: 64,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,
@@ -30,12 +31,8 @@ func Test_mnistMLP0(t *testing.T) {
 		Seed:      42,
 	}
 
-	err := gym.Bind(mx.CPU, mnistMLP0)
+	acc, err := gym.Train(mx.CPU, mnistMLP0)
 	assert.NilError(t, err)
-	t.Logf("Network Identity: %v", gym.Network.Identity())
-	acc, err := gym.Train()
-	assert.NilError(t, err)
-	t.Logf("Accuracy: %v", acc)
 	assert.Assert(t, acc >= gym.Accuracy)
 }
 

@@ -18,6 +18,7 @@ const (
 
 type Gym struct {
 	Optimizer nn.OptimizerConf
+	Loss      mx.Loss
 	BatchSize int
 	Input     mx.Dimension
 	Epochs    int
@@ -28,11 +29,6 @@ type Gym struct {
 	Accuracy  float32
 	Workout   GymWorkout
 	Seed      int
-
-	Network *nn.Network
-	store   GymStore
-	epoch   GymEpoch
-	seed    int
 }
 
 func (gym *Gym) verbose(s string) {
@@ -60,41 +56,46 @@ func (gym *Gym) sprintOn() func(int64) int64 {
 	}
 }
 
-func (gym *Gym) startEpoch() int {
-	if gym.store != nil {
-		return gym.store.EpochsCount()
+type store struct {
+	GymStore
+}
+
+type epoch struct {
+	GymEpoch
+}
+
+func (s store) EpochsCount() int {
+	if s.GymStore != nil {
+		return s.GymStore.EpochsCount()
 	}
 	return 0
 }
 
-func (gym *Gym) nextEpoch(i int) error {
-	var err error
-	if gym.store != nil {
-		if gym.epoch, err = gym.store.AddEpoch(i); err != nil {
-			return err
-		}
+func (s store) AddEpoch(i int) (epoch,error) {
+	if s.GymStore != nil {
+		ep, e := s.GymStore.AddEpoch(i)
+		return epoch{ep}, e
+	}
+	return epoch{nil},nil
+}
+
+func (s epoch) WriteBatchLoss(loss float64) error {
+	if s.GymEpoch != nil {
+		return s.GymEpoch.WriteBatchLoss(float32(loss))
 	}
 	return nil
 }
 
-func (gym *Gym) writeBatchLoss(loss float64) error {
-	if gym.epoch != nil {
-		return gym.epoch.WriteBatchLoss(float32(loss))
+func (s epoch) Commit() error {
+	if s.GymEpoch != nil {
+		return s.GymEpoch.Commit()
 	}
 	return nil
 }
 
-func (gym *Gym) commitEpoch() error {
-	if gym.epoch != nil {
-		return gym.epoch.Commit()
-	}
-	return nil
-}
-
-func (gym *Gym) finishEpoch(accuracy float64) error {
-	if gym.epoch != nil {
-		err := gym.epoch.Finish(float32(accuracy), gym.Network)
-		gym.epoch = nil
+func (s epoch) Finish(accuracy float64, net *nn.Network) error {
+	if s.GymEpoch != nil {
+		err := s.GymEpoch.Finish(float32(accuracy), net)
 		if err != nil {
 			return err
 		}

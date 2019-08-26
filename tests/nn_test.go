@@ -50,13 +50,13 @@ func Test_nn1_Forward(t *testing.T) {
 	}
 }
 
-func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
+func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 
 	f := func(x *mx.Symbol) *mx.Symbol {
 		return mx.Pow(mx.Add(x, mx.Var("_offset", ini)), 2)
 	}
 
-	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), opt)
+	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), loss)
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
 	defer net.Release()
@@ -68,11 +68,12 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
 	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
 
+	opti, _ := opt.Init()
 	mx.CPU.RandomSeed(42)
 
 	for n := 0; n < 200; n++ {
 		assert.NilError(t, err)
-		err := net.Train(input, label)
+		err := net.Train(input, label, opti)
 		assert.NilError(t, err)
 		v := net.Graph.Params["_offset"].Data.ValuesF32()
 		if v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1 {
@@ -90,9 +91,9 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite) {
 }
 
 func Test_nn1(t *testing.T) {
-	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8, Loss: &nn.L0Loss{}}, nil)
-	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8, Loss: &nn.L2Loss{}}, &nn.Const{0})
-	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L0Loss{}}, &nn.Const{.1})
-	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L2Loss{}}, &nn.Xavier{Gaussian: true, Magnitude: 0.5})
-	f_nn1(t, &nn.Adam{Lr: .1, Loss: &nn.L1Loss{}}, &nn.Uniform{})
+	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, nil,  &nn.L0Loss{})
+	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, &nn.Const{0}, &nn.L2Loss{})
+	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Const{.1}, &nn.L0Loss{})
+	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Xavier{Gaussian: true, Magnitude: 0.5}, &nn.L2Loss{})
+	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Uniform{}, &nn.L1Loss{})
 }

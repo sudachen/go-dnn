@@ -2,26 +2,58 @@ package ng
 
 import (
 	"fmt"
+	"github.com/sudachen/go-dnn/mx"
+	"github.com/sudachen/go-dnn/nn"
 )
 
-func (gym *Gym) Train() (float32, error) {
+func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout ...GymWorkout) (float32, error) {
 	var (
 		li, ti        GymBatchs
 		err           error
 		loss, acc     float64
 		batchs, count int
+		net *nn.Network
+		st store
+		ep epoch
+		seed int
+		wo GymWorkout
+		opt nn.Optimizer
 	)
 
-	if li, ti, err = gym.Dataset.Open(gym.seed+1, gym.BatchSize); err != nil {
+	input := gym.Input.Push(gym.BatchSize)
+
+	if net, err = nn.Bind(ctx, nb, input, gym.Loss); err != nil {
+		return 0,err
+	}
+	defer net.Release()
+
+	gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity()))
+
+	if gym.Verbose != Silent {
+		_ = net.SummaryOut(true, gym.verbose)
+	}
+
+	if len(workout) > 0 {
+		wo = workout[0]
+	}
+
+	if st, seed, err = gym.init(net,wo); err != nil {
 		return 0, err
 	}
 
-	g := gym.Network.Graph
-	lf := make([]float32, g.Loss.Dim().Total())
+	if li, ti, err = gym.Dataset.Open(seed+1, gym.BatchSize); err != nil {
+		return 0, err
+	}
 
-	for epoch := gym.startEpoch(); epoch < gym.Epochs; epoch++ {
+	lf := make([]float32, net.Loss.Dim().Total())
 
-		if err = gym.nextEpoch(epoch); err != nil {
+	for epoch := st.EpochsCount(); epoch < gym.Epochs; epoch++ {
+
+		if opt, err = gym.Optimizer.Init(); err != nil {
+			return 0, err
+		}
+
+		if ep, err = st.AddEpoch(epoch); err != nil {
 			return 0, err
 		}
 
@@ -32,15 +64,15 @@ func (gym *Gym) Train() (float32, error) {
 		sprint := gym.sprintOn()
 		tm := sprint(0)
 
-		gym.Network.Graph.Ctx.RandomSeed(gym.seed + epoch + 2)
+		net.Ctx.RandomSeed(seed + epoch + 2)
 		acc, count, batchs = 0, 0, 0
 		for li.Next() {
 			batchs++
-			if err = gym.Network.Train(li.Data(), li.Label()); err != nil {
+			if err = net.Train(li.Data(), li.Label(), opt); err != nil {
 				return 0, err
 			}
 
-			if err = g.Loss.CopyValuesTo(lf); err != nil {
+			if err = net.Loss.CopyValuesTo(lf); err != nil {
 				return 0, err
 			}
 			loss = 0
@@ -48,7 +80,7 @@ func (gym *Gym) Train() (float32, error) {
 				loss += float64(v)
 			}
 			loss /= float64(len(lf))
-			_ = gym.writeBatchLoss(loss)
+			_ = ep.WriteBatchLoss(loss)
 
 			if tm != 0 {
 				acc += loss
@@ -58,7 +90,7 @@ func (gym *Gym) Train() (float32, error) {
 					loss = acc / float64(count)
 					acc, count = 0, 0
 					gym.verbose(fmt.Sprintf("Epoch %d, batch %d, avg loss: %v", epoch, batchs, loss))
-					_ = gym.commitEpoch()
+					_ = ep.Commit()
 				}
 			}
 		}
@@ -70,7 +102,7 @@ func (gym *Gym) Train() (float32, error) {
 		acc, count = 0, 0
 		for ti.Next() {
 			var a float64
-			if a, err = gym.Network.Test(ti.Data(), ti.Label(), gym.AccFunc); err != nil {
+			if a, err = net.Test(ti.Data(), ti.Label(), gym.AccFunc); err != nil {
 				return 0, err
 			}
 			acc += a
@@ -80,7 +112,7 @@ func (gym *Gym) Train() (float32, error) {
 		acc = acc / float64(count)
 		gym.verbose(fmt.Sprintf("Epoch %d, accuracy: %v", epoch, float32(acc)))
 
-		if err := gym.finishEpoch(acc); err != nil {
+		if err := ep.Finish(acc, net); err != nil {
 			return 0, err
 		}
 

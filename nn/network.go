@@ -7,37 +7,25 @@ type Network struct {
 
 	BatchSize   int
 	Initialized bool
-	Optimizer   Optimizer
 }
 
 func (n *Network) Release() {
 	n.Graph.Release()
-	if n.Optimizer != nil {
-		n.Optimizer.Release()
-	}
 }
 
-func Bind(ctx mx.Context, nb Block, input mx.Dimension, opt OptimizerConf) (*Network, error) {
+func Bind(ctx mx.Context, nb Block, input mx.Dimension, loss mx.Loss) (*Network, error) {
 	var (
 		err  error
 		sym  *mx.Symbol
-		opti Optimizer
-		loss mx.Loss
 	)
 	if sym, _, err = nb.Combine(mx.Input(), nil); err != nil {
 		return nil, err
-	}
-	if opt != nil {
-		if opti, err = opt.Init(); err != nil {
-			return nil, err
-		}
-		loss = opti.GetLoss()
 	}
 	g, err := mx.Compose(ctx, sym, loss, input, mx.Float32)
 	if err != nil {
 		return nil, err
 	}
-	f := &Network{Graph: g, BatchSize: input.Shape[0], Optimizer: opti}
+	f := &Network{Graph: g, BatchSize: input.Shape[0]}
 	return f, nil
 }
 
@@ -90,7 +78,7 @@ func (f *Network) Test(data, label []float32, accfunc AccFunc) (float64, error) 
 	return acc / float64(count), nil
 }
 
-func (f *Network) Train(data interface{}, label interface{}) error {
+func (f *Network) Train(data interface{}, label interface{}, opt Optimizer) error {
 	if err := f.Graph.Input.SetValues(data); err != nil {
 		return err
 	}
@@ -105,13 +93,13 @@ func (f *Network) Train(data interface{}, label interface{}) error {
 	if err := f.Graph.Backward(); err != nil {
 		return err
 	}
-	return f.Update()
+	return f.Update(opt)
 }
 
-func (f *Network) Update() error {
+func (f *Network) Update(opt Optimizer) error {
 	for _, p := range f.Graph.Params {
 		if p.Autograd && p.Grad != nil {
-			err := f.Optimizer.Update(p.Data, p.Grad)
+			err := opt.Update(p.Data, p.Grad)
 			if err != nil {
 				return err
 			}

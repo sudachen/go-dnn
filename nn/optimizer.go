@@ -9,5 +9,4 @@ type OptimizerConf interface {
 type Optimizer interface {
 	Release()
 	Update(params *mx.NDArray, grads *mx.NDArray) error
-	GetLoss() mx.Loss
 }

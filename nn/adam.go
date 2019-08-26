@@ -6,8 +6,6 @@ import (
 )
 
 type Adam struct {
-	Loss mx.Loss
-
 	Lr, Beta1, Beta2, Epsilon float32
 }
 
@@ -61,8 +59,4 @@ func (opt *implAdam) Update(params *mx.NDArray, grads *mx.NDArray) error {
 		opt.States[params] = st
 	}
 	return mx.AdamUpdate(params, grads, st.Mean, st.Var, opt.Lr, opt.Beta1, opt.Beta2, opt.Epsilon, 0)
-}
-
-func (opt *implAdam) GetLoss() mx.Loss {
-	return opt.Loss
 }

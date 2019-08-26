@@ -1,58 +1,54 @@
 package ng
 
 import (
-	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/nn"
 	"time"
 )
 
-func (gym *Gym) Bind(ctx mx.Context, nb nn.Block) error {
-	var err error
+func (gym *Gym) init(net *nn.Network, workout GymWorkout) (store, int, error) {
 
-	input := gym.Input.Push(gym.BatchSize)
+	var (
+		err error
+		s store
+		seed int
+	)
 
-	if gym.Network, err = nn.Bind(ctx, nb, input, gym.Optimizer); err != nil {
-		return err
+	seed = gym.Seed
+
+	if seed == 0 {
+		seed = int(time.Now().Unix())
 	}
 
-	if gym.Verbose != Silent {
-		_ = gym.Network.Graph.SummaryOut(true, gym.verbose)
-	}
+	if workout != nil {
 
-	gym.seed = gym.Seed
-
-	if gym.seed == 0 {
-		gym.seed = int(time.Now().Unix())
-	}
-
-	if gym.Workout != nil {
-
-		if gym.store, err = gym.Workout.Get(gym.Network.Graph.Identity()); err != nil {
-			return err
+		gymstor, err := workout.Get(net.Identity());
+		if err != nil {
+			return s,0,err
 		}
+		s = store{gymstor}
 
-		if gym.store.EpochsCount() == 0 {
-			summary, err := gym.Network.Graph.Summary(true)
+		if s.EpochsCount() == 0 {
+			summary, err := net.Summary(true)
 			if err != nil {
-				return err
+				return s,0,err
 			}
-			if err = gym.store.WriteSummary(summary, gym.seed); err != nil {
-				return err
+			if err = s.WriteSummary(summary, seed); err != nil {
+				return s,0,err
 			}
 		} else {
-			gym.seed = gym.store.Seed()
+			seed = s.Seed()
 		}
 
-		gym.Network.Graph.Ctx.RandomSeed(gym.seed)
-		if err = gym.store.InitParams(gym.Network); err != nil {
-			return err
+		net.Ctx.RandomSeed(seed)
+		if err = s.InitParams(net); err != nil {
+			return s,0,err
 		}
 	} else {
-		gym.Network.Graph.Ctx.RandomSeed(gym.seed)
-		if err = gym.Network.Graph.Initialize(nil); err != nil {
-			return err
+		net.Graph.Ctx.RandomSeed(seed)
+		if err = net.Initialize(nil); err != nil {
+			return s,0,err
 		}
 	}
 
-	return nil
+	return s, seed, nil
 }

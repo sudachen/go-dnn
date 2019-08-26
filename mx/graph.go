@@ -59,11 +59,15 @@ func (g *Graph) symRelease() {
 }
 
 func (g *Graph) Release() {
+	runtime.SetFinalizer(g,nil)
+
 	g.symRelease()
 	if g.symLast != g.symOut {
 		capi.ReleaseSymbol(g.symLast)
+		g.symLast = nil
 	}
 	capi.ReleaseSymbol(g.symOut)
+	g.symOut = nil
 
 	g.Input.Release()
 	g.Label.Release()

@@ -3,8 +3,6 @@ package nn
 import "github.com/sudachen/go-dnn/mx"
 
 type SGD struct {
-	Loss mx.Loss
-
 	Lr, Mom float32
 }
 
@@ -39,8 +37,4 @@ func (opt *implSGD) Update(params *mx.NDArray, grads *mx.NDArray) error {
 		return mx.SgdMomUpdate(params, grads, st, opt.Lr, opt.Mom, 0)
 	}
 	return mx.SgdUpdate(params, grads, opt.Lr, 0)
-}
-
-func (opt *implSGD) GetLoss() mx.Loss {
-	return opt.Loss
 }
