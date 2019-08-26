@@ -49,6 +49,7 @@ func Test_mnistConv0(t *testing.T) {
 ```
 ```text
 === RUN   Test_mnistConv0
+Network Identity: 5080c6ac83cd87f6aa66c98ff7ec79f4d5ab683f
 Symbol           | Operation           | Output        |  Params #
 ------------------------------------------------------------------
 _input           | null                | (64,1,28,28)  |         0
@@ -70,6 +71,7 @@ sym15            | _mul_scalar         | (64,1)        |         0
 sym16            | mean                | (1)           |         0
 sym17            | make_loss           | (1)           |         0
 ------------------------------------------------------------------
+Total params: 129388
 Epoch 0, batch 552, avg loss: 0.1568979772442169
 Epoch 0, accuracy: 0.9807692
 Achieved reqired accuracy 0.98

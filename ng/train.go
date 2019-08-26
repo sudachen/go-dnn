@@ -41,6 +41,8 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout ...GymWorkout) (float
 		return 0, err
 	}
 
+	gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity()))
+
 	if li, ti, err = gym.Dataset.Open(seed+1, gym.BatchSize); err != nil {
 		return 0, err
 	}
