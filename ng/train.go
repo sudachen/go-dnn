@@ -76,7 +76,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
 		_ = net.SummaryOut(true, gym.verbose)
 	}
 
-	if gym.State != nil  {
+	if gym.State != nil {
 		state = gym.State
 	} else {
 		state = &nullState{}
@@ -88,7 +88,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
 		seed = gym.Seed
 	}
 
-	if seed, err = state.Setup(net,seed); err != nil {
+	if seed, err = state.Setup(net, seed); err != nil {
 		return 0, nn.Params{}, err
 	}
 
@@ -163,7 +163,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
 			return 0, nn.Params{}, err
 		}
 
-		gym.verbose(fmt.Sprintf("Epoch %d, accuracy: %v, final loss: %v", epoch, fu.Round1(acc,3), fu.Round1(avg.Value(),4)))
+		gym.verbose(fmt.Sprintf("Epoch %d, accuracy: %v, final loss: %v", epoch, fu.Round1(acc, 3), fu.Round1(avg.Value(), 4)))
 
 		if gym.Accuracy > 0 && acc >= gym.Accuracy {
 			gym.verbose(fmt.Sprintf("Achieved reqired accuracy %v", gym.Accuracy))
@@ -216,6 +216,6 @@ func Measure(net *nn.Network, batchs interface{}, accfunc nn.AccFunc, verbosity 
 	w := net.Input.Len(0)
 	acc = acc / float64(count)
 
-	verbose(fmt.Sprintf("Accuracy over %d*%d batchs: %v", count, w, fu.Round1(float32(acc),3)), verbosity)
+	verbose(fmt.Sprintf("Accuracy over %d*%d batchs: %v", count, w, fu.Round1(float32(acc), 3)), verbosity)
 	return float32(acc), nil
 }

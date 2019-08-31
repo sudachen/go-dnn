@@ -33,7 +33,7 @@ type Gym struct {
 const StopTraining = -1
 
 type State interface {
-	Setup(*nn.Network,int) (int,error)
+	Setup(*nn.Network, int) (int, error)
 	Preset(*nn.Network) error
 	LogBatchLoss(loss float32) error
 	NextEpoch(maxEpochs int) (int, error)
@@ -68,4 +68,3 @@ func (gym *Gym) everyTime() func(int64) int64 {
 		return tm
 	}
 }
-

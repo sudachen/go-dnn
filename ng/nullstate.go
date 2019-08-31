@@ -16,15 +16,15 @@ func (s *nullState) NextEpoch(maxEpochs int) (int, error) {
 	return StopTraining, nil
 }
 
-func (s *nullState) Setup(net *nn.Network, seed int) (int,error) {
+func (s *nullState) Setup(net *nn.Network, seed int) (int, error) {
 	if seed != 0 {
 		seed = 42
 	}
 	net.Ctx.RandomSeed(seed)
-	if err := net.Initialize(nil); err!= nil {
+	if err := net.Initialize(nil); err != nil {
 		return 0, err
 	}
-	return seed,nil
+	return seed, nil
 }
 
 func (s *nullState) Preset(net *nn.Network) error {
