@@ -41,39 +41,53 @@ func Test_mnistConv0(t *testing.T) {
 		Seed:      42,
 	}
 
-	acc, err := gym.Train(mx.CPU, mnistConv0)
+	acc, params, err := gym.Train(mx.CPU, mnistConv0)
 	assert.NilError(t, err)
-	assert.Assert(t, acc >= gym.Accuracy)
+	assert.Assert(t, acc >= 0.98)
+	err = params.Save(fu.CacheFile("tests/mnistConv0.params"))
+	assert.NilError(t, err)
+
+	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(32, 1, 28, 28), nil)
+	assert.NilError(t, err)
+	err = net.LoadParamsFile(fu.CacheFile("tests/mnistConv0.params"), false)
+	assert.NilError(t, err)
+	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
+	assert.Assert(t, acc >= 0.98)
 }
 
 ```
 ```text
 === RUN   Test_mnistConv0
-Network Identity: 5080c6ac83cd87f6aa66c98ff7ec79f4d5ab683f
+Network Identity: 62b2117bed4ef63412495b6dfe582a065759cb17
 Symbol           | Operation           | Output        |  Params #
 ------------------------------------------------------------------
-_input           | null                | (64,1,28,28)  |         0
-Convolution01    | Convolution((5,5)/) | (64,20,24,24) |       520
-sym05            | Activation(tanh)    | (64,20,24,24) |         0
-sym06            | Pooling(max)        | (64,20,12,12) |         0
-Convolution02    | Convolution((5,5)/) | (64,50,8,8)   |     25050
-sym07            | Activation(tanh)    | (64,50,8,8)   |         0
-sym08            | Pooling(max)        | (64,50,4,4)   |         0
-FullyConnected03 | FullyConnected      | (64,128)      |    102528
-sym09            | Activation(tanh)    | (64,128)      |         0
-FullyConnected04 | FullyConnected      | (64,10)       |      1290
-sym10            | SoftmaxActivation() | (64,10)       |         0
-sym11            | BlockGrad           | (64,10)       |         0
-sym12            | make_loss           | (64,10)       |         0
-sym13            | pick                | (64,1)        |         0
-sym14            | log                 | (64,1)        |         0
-sym15            | _mul_scalar         | (64,1)        |         0
+_input           | null                | (32,1,28,28)  |         0
+Convolution01    | Convolution((5,5)/) | (32,20,24,24) |       520
+sym05            | Activation(tanh)    | (32,20,24,24) |         0
+sym06            | Pooling(max)        | (32,20,12,12) |         0
+Convolution02    | Convolution((5,5)/) | (32,50,8,8)   |     25050
+sym07            | Activation(tanh)    | (32,50,8,8)   |         0
+sym08            | Pooling(max)        | (32,50,4,4)   |         0
+FullyConnected03 | FullyConnected      | (32,128)      |    102528
+sym09            | Activation(tanh)    | (32,128)      |         0
+FullyConnected04 | FullyConnected      | (32,10)       |      1290
+sym10            | SoftmaxActivation() | (32,10)       |         0
+sym11            | BlockGrad           | (32,10)       |         0
+sym12            | make_loss           | (32,10)       |         0
+sym13            | pick                | (32,1)        |         0
+sym14            | log                 | (32,1)        |         0
+sym15            | _mul_scalar         | (32,1)        |         0
 sym16            | mean                | (1)           |         0
 sym17            | make_loss           | (1)           |         0
 ------------------------------------------------------------------
 Total params: 129388
-Epoch 0, batch 552, avg loss: 0.1568979772442169
-Epoch 0, accuracy: 0.9807692
+Epoch 0, batch 242, loss: 0.116668604
+Epoch 0, batch 613, loss: 0.08666626
+Epoch 0, batch 990, loss: 0.044911027
+Epoch 0, batch 1363, loss: 0.11836946
+Epoch 0, batch 1741, loss: 0.082941115
+Epoch 0, accuracy: 0.985, final loss: 0.0316
 Achieved reqired accuracy 0.98
---- PASS: Test_mnistConv0 (10.73s)
+Accuracy over 312*32 batchs: 0.985
+--- PASS: Test_mnistConv0 (12.35s)
 ```

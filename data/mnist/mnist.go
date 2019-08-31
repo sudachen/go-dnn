@@ -106,19 +106,19 @@ var testLabel = dsFile{"t10k-labels-idx1-ubyte.gz", "763e7fa3757d93b0cdec073cef0
 
 type Dataset struct{}
 
-func (d Dataset) Open(seed int, batchSize int) (ng.GymBatchs, ng.GymBatchs, error) {
+func (d Dataset) Open(seed int, batchSize int) (ng.Batchs, ng.Batchs, error) {
 	for _, v := range []*dsFile{&trainData, &trainLabel, &testData, &testLabel} {
 		if err := v.Download(fu.CacheDir(cacheDir)); err != nil {
 			return nil, nil, err
 		}
 	}
 
-	trainIter := &BatchsIterator{BatchSize: batchSize}
+	trainIter := &Batchs{BatchSize: batchSize}
 	if err := trainIter.Load(&trainData, &trainLabel, seed); err != nil {
 		return nil, nil, err
 	}
 
-	testIter := &BatchsIterator{BatchSize: batchSize}
+	testIter := &Batchs{BatchSize: batchSize}
 	if err := testIter.Load(&testData, &testLabel, seed); err != nil {
 		return nil, nil, err
 	}
@@ -126,7 +126,7 @@ func (d Dataset) Open(seed int, batchSize int) (ng.GymBatchs, ng.GymBatchs, erro
 	return trainIter, testIter, nil
 }
 
-type BatchsIterator struct {
+type Batchs struct {
 	BatchSize             int
 	DataBs, LabelBs       []byte
 	Count, Batchs         int
@@ -137,7 +137,7 @@ type BatchsIterator struct {
 	DataBatch, LabelBatch []float32
 }
 
-func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
+func (b *Batchs) Load(dataFile, labelFile *dsFile, seed int) error {
 	var (
 		data, label []byte
 		err         error
@@ -175,7 +175,7 @@ func (b *BatchsIterator) Load(dataFile, labelFile *dsFile, seed int) error {
 	return nil
 }
 
-func (b *BatchsIterator) Skip(skip int) error {
+func (b *Batchs) Skip(skip int) error {
 	if skip < 0 || b.Index+skip > b.Batchs-1 {
 		return fmt.Errorf("dataset iterator out of range")
 	}
@@ -183,7 +183,7 @@ func (b *BatchsIterator) Skip(skip int) error {
 	return nil
 }
 
-func (b *BatchsIterator) Next() bool {
+func (b *Batchs) Next() bool {
 	idx := b.Index
 	if idx < b.Batchs {
 		if b.RndIndex != nil {
@@ -205,19 +205,19 @@ func (b *BatchsIterator) Next() bool {
 	return false
 }
 
-func (b *BatchsIterator) Data() []float32 {
+func (b *Batchs) Data() []float32 {
 	return b.DataBatch
 }
 
-func (b *BatchsIterator) Label() []float32 {
+func (b *Batchs) Label() []float32 {
 	return b.LabelBatch
 }
 
-func (b *BatchsIterator) Close() error {
+func (b *Batchs) Close() error {
 	return nil
 }
 
-func (b *BatchsIterator) Reset() error {
+func (b *Batchs) Reset() error {
 	b.Index = 0
 	return nil
 }

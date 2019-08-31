@@ -23,15 +23,15 @@ func fuCompare(a, b interface{}) bool {
 }
 
 func Test_fu_Round(t *testing.T) {
-	assert.Assert(t, fuCompare(fu.Round10(1.333222, 3), 1.333))
+	assert.Assert(t, fuCompare(fu.Round1(1.333222, 3), 1.333))
 	assert.Assert(t, fuCompare(fu.Round([]float32{1.333222}, 3), []float32{1.333}))
-	assert.Assert(t, fuCompare(fu.Round10(1.333666, 3), 1.334))
+	assert.Assert(t, fuCompare(fu.Round1(1.333666, 3), 1.334))
 	assert.Assert(t, fuCompare(fu.Round([]float32{1.333666}, 3), []float32{1.334}))
 }
 
 func Test_fu_Floor(t *testing.T) {
-	assert.Assert(t, fuCompare(fu.Floor10(1.333222, 3), 1.333))
+	assert.Assert(t, fuCompare(fu.Floor1(1.333222, 3), 1.333))
 	assert.Assert(t, fuCompare(fu.Floor([]float32{1.333222}, 3), []float32{1.333}))
-	assert.Assert(t, fuCompare(fu.Floor10(1.333666, 3), 1.333))
+	assert.Assert(t, fuCompare(fu.Floor1(1.333666, 3), 1.333))
 	assert.Assert(t, fuCompare(fu.Floor([]float32{1.333666}, 3), []float32{1.333}))
 }

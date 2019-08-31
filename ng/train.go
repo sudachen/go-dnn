@@ -2,23 +2,51 @@ package ng
 
 import (
 	"fmt"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/nn"
 	"time"
 )
 
-func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32, nn.Params, error) {
+const avgLossLen = 10
+
+type avgLoss struct {
+	index int
+	hist  [avgLossLen]float32
+}
+
+func (a *avgLoss) Value() float32 {
 	var (
-		li, ti        GymBatchs
-		err           error
-		loss, acc     float32
-		batchs, count int
-		net           *nn.Network
-		st            state
-		ep            epoch
-		seed          int
-		opt           nn.Optimizer
-		params        nn.Params
+		acc   float32
+		count int
+	)
+	for _, v := range a.hist {
+		if v != 0 {
+			acc += v
+			count++
+		}
+	}
+	return acc / float32(count)
+}
+
+func (a *avgLoss) Add(val float32) {
+	a.hist[a.index] = val
+	a.index = (a.index + 1) % len(a.hist)
+}
+
+func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
+	var (
+		li, ti    Batchs
+		err       error
+		loss, acc float32
+		epoch     int
+		batchs    int
+		net       *nn.Network
+		st        nullState
+		seed      int
+		opt       nn.Optimizer
+		params    nn.Params
+		state     State
 	)
 
 	defer func() {
@@ -28,8 +56,15 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32,
 		if net != nil {
 			net.Release()
 		}
+		if li != nil {
+			_ = li.Close()
+		}
+		if ti != nil {
+			_ = ti.Close()
+		}
 	}()
 
+	nextTime := gym.everyTime()
 	input := gym.Input.Push(gym.BatchSize)
 
 	if net, err = nn.Bind(ctx, nb, input, gym.Loss); err != nil {
@@ -42,24 +77,41 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32,
 		_ = net.SummaryOut(true, gym.verbose)
 	}
 
-	if st, seed, err = gym.init(net, workout); err != nil {
+	if gym.State != nil  {
+		state = gym.State
+	} else {
+		state = &nullState{}
+	}
+
+	if gym.Seed == 0 {
+		seed = int(time.Now().Unix())
+	} else {
+		seed = gym.Seed
+	}
+
+	if seed, err = state.Setup(net,seed); err != nil {
 		return 0, nn.Params{}, err
 	}
 
 	if li, ti, err = gym.Dataset.Open(seed+1, gym.BatchSize); err != nil {
 		return 0, nn.Params{}, err
 	}
-	defer func() { _ = li.Close(); _ = ti.Close() }()
 
 	lf := make([]float32, net.Loss.Dim().Total())
 
-	for epoch := st.EpochsCount(); epoch < gym.Epochs; epoch++ {
+	for {
 
-		if opt, err = gym.Optimizer.Init(); err != nil {
+		if epoch, err = st.NextEpoch(gym.Epochs); err != nil {
 			return 0, nn.Params{}, err
 		}
 
-		if ep, err = st.AddEpoch(epoch); err != nil {
+		if epoch <= StopTraining || (gym.Epochs > 0 && epoch >= gym.Epochs) {
+			break
+		}
+
+		avg := avgLoss{}
+
+		if opt, err = gym.Optimizer.Init(); err != nil {
 			return 0, nn.Params{}, err
 		}
 
@@ -67,11 +119,14 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32,
 			return 0, nn.Params{}, err
 		}
 
-		sprint := gym.sprintOn()
-		tm := sprint(0)
+		if err = state.Preset(net); err != nil {
+			return 0, nn.Params{}, err
+		}
+
+		tm := nextTime(0)
 
 		net.Ctx.RandomSeed(seed + epoch + 2)
-		acc, count, batchs = 0, 0, 0
+		acc, batchs = 0, 0
 		for li.Next() {
 			batchs++
 			if err = net.Train(li.Data(), li.Label(), opt); err != nil {
@@ -86,17 +141,14 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32,
 				loss += v
 			}
 			loss /= float32(len(lf))
-			_ = ep.WriteBatchLoss(loss)
+			_ = state.LogBatchLoss(loss)
+
+			avg.Add(loss)
 
 			if tm != 0 {
-				acc += loss
-				count++
-				if tx := sprint(tm); tx != tm {
+				if tx := nextTime(tm); tx != tm {
 					tm = tx
-					loss = acc / float32(count)
-					acc, count = 0, 0
-					gym.verbose(fmt.Sprintf("Epoch %d, batch %d, avg loss: %v", epoch, batchs, loss))
-					_ = ep.Commit()
+					gym.verbose(fmt.Sprintf("Epoch %d, batch %d, loss: %v", epoch, batchs, avg.Value()))
 				}
 			}
 		}
@@ -104,56 +156,48 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block, workout GymWorkout) (float32,
 		opt.Release()
 		opt = nil
 
-		if acc, err = Measure(net, gym.Dataset, gym.AccFunc, Silent); err != nil {
+		if err := state.FinishEpoch(acc, net); err != nil {
 			return 0, nn.Params{}, err
 		}
 
-		gym.verbose(fmt.Sprintf("Epoch %d, accuracy: %v", epoch, float32(acc)))
-
-		if workout != nil {
-			if params, err = nn.ParamsOf(net); err != nil {
-				return 0, nn.Params{}, err
-			}
-		}
-
-		if err := ep.Finish(acc, params); err != nil {
+		if acc, err = Measure(net, ti, gym.AccFunc, Silent); err != nil {
 			return 0, nn.Params{}, err
 		}
 
-		if gym.Accuracy > 0 && float32(acc) >= gym.Accuracy {
-			gym.verbose(fmt.Sprintf("Achieved reqired accuracy %v", float32(gym.Accuracy)))
+		gym.verbose(fmt.Sprintf("Epoch %d, accuracy: %v, final loss: %v", epoch, fu.Round1(acc,3), fu.Round1(avg.Value(),4)))
+
+		if gym.Accuracy > 0 && acc >= gym.Accuracy {
+			gym.verbose(fmt.Sprintf("Achieved reqired accuracy %v", gym.Accuracy))
 			break
 		}
 	}
 
-	if workout == nil {
-		if params, err = nn.ParamsOf(net); err != nil {
-			return 0, nn.Params{}, err
-		}
+	if params, err = net.GetParams(); err != nil {
+		return 0, nn.Params{}, err
 	}
 
 	return float32(acc), params, nil
 }
 
-func Measure(net *nn.Network, batches interface{}, accfunc nn.AccFunc, verbosity Verbosity) (float32, error) {
+func Measure(net *nn.Network, batchs interface{}, accfunc nn.AccFunc, verbosity Verbosity) (float32, error) {
 
 	var (
 		err    error
-		li, ti GymBatchs
-		acc    float32
+		li, ti Batchs
+		acc    float64
 		count  int
 	)
 
-	switch s := batches.(type) {
-	case GymBatchs:
+	switch s := batchs.(type) {
+	case Batchs:
 		ti = s
-	case GymDataset:
+	case Dataset:
 		if li, ti, err = s.Open(int(time.Now().Unix()), net.Input.Len(0)); err != nil {
 			return 0, err
 		}
 		defer func() { _ = li.Close(); _ = ti.Close() }()
 	default:
-		return 0, fmt.Errorf("samples for Measure function must be ng.GymBatchs or ng.Dataset")
+		return 0, fmt.Errorf("samples for Measure function must be ng.Batchs or ng.Dataset")
 	}
 
 	if err = ti.Reset(); err != nil {
@@ -166,12 +210,13 @@ func Measure(net *nn.Network, batches interface{}, accfunc nn.AccFunc, verbosity
 		if a, err = net.Test(ti.Data(), ti.Label(), accfunc); err != nil {
 			return 0, err
 		}
-		acc += a
+		acc += float64(a)
 		count++
 	}
 
-	acc = acc / float32(count)
+	w := net.Input.Len(0)
+	acc = acc / float64(count)
 
-	verbose(fmt.Sprintf("Accuracy over %d batches: %v", count, float32(acc)), verbosity)
-	return acc, nil
+	verbose(fmt.Sprintf("Accuracy over %d*%d batchs: %v", count, w, fu.Round1(float32(acc),3)), verbosity)
+	return float32(acc), nil
 }

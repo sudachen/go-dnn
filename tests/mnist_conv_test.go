@@ -2,6 +2,7 @@ package tests
 
 import (
 	"github.com/sudachen/go-dnn/data/mnist"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/ng"
 	"github.com/sudachen/go-dnn/nn"
@@ -23,18 +24,27 @@ func Test_mnistConv0(t *testing.T) {
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
 		Loss:      &nn.LabelCrossEntropyLoss{},
-		BatchSize: 64,
+		BatchSize: 32,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,
-		Sprint:    5 * time.Second,
 		Verbose:   ng.Printing,
+		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
 		AccFunc:   ng.Classification,
 		Accuracy:  0.98,
 		Seed:      42,
 	}
 
-	acc, _, err := gym.Train(mx.CPU, mnistConv0, nil)
+	acc, params, err := gym.Train(mx.CPU, mnistConv0)
 	assert.NilError(t, err)
-	assert.Assert(t, acc >= gym.Accuracy)
+	assert.Assert(t, acc >= 0.98)
+	err = params.Save(fu.CacheFile("tests/mnistConv0.params"))
+	assert.NilError(t, err)
+
+	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(32, 1, 28, 28), nil)
+	assert.NilError(t, err)
+	err = net.LoadParamsFile(fu.CacheFile("tests/mnistConv0.params"), false)
+	assert.NilError(t, err)
+	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
+	assert.Assert(t, acc >= 0.98)
 }

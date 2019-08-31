@@ -21,37 +21,36 @@ func Test_mnistMLP0(t *testing.T) {
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
 		Loss:      &nn.LabelCrossEntropyLoss{},
-		BatchSize: 64,
+		BatchSize: 32,
 		Input:     mx.Dim(1, 28, 28),
 		Epochs:    5,
-		Sprint:    5 * time.Second,
 		Verbose:   ng.Printing,
+		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
 		AccFunc:   ng.Classification,
 		Accuracy:  0.96,
 		Seed:      42,
 	}
 
-	acc, params, err := gym.Train(mx.CPU, mnistMLP0, nil)
+	acc, params, err := gym.Train(mx.CPU, mnistMLP0)
 	assert.NilError(t, err)
-	assert.Assert(t, acc >= gym.Accuracy)
+	assert.Assert(t, acc >= 0.96)
 
-	net1, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(16, 1, 28, 28), nil)
+	net1, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(50, 1, 28, 28), nil)
 	assert.NilError(t, err)
 	defer net1.Release()
 	_ = net1.PrintSummary(false)
-	err = params.Setup(net1, false)
+	err = net1.SetParams(params, false)
 	assert.NilError(t, err)
 	acc, err = ng.Measure(net1, &mnist.Dataset{}, ng.Classification, ng.Printing)
-	assert.Assert(t, acc >= gym.Accuracy)
-	err = params.Save(fu.CacheFile("tests/mnistMLP0.params"))
+	assert.Assert(t, acc >= 0.96)
+	err = net1.SaveParamsFile(fu.CacheFile("tests/mnistMLP0.params"))
 	assert.NilError(t, err)
 
-	params2, err := nn.LoadParams(fu.CacheFile("tests/mnistMLP0.params"))
+	net2, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(10, 1, 28, 28), nil)
 	assert.NilError(t, err)
-	net2, err := nn.Bind(mx.CPU, mnistMLP0, mx.Dim(16, 1, 28, 28), nil)
-	err = params2.Setup(net2, false)
+	err = net2.LoadParamsFile(fu.CacheFile("tests/mnistMLP0.params"), false)
 	assert.NilError(t, err)
 	acc, err = ng.Measure(net2, &mnist.Dataset{}, ng.Classification, ng.Printing)
-	assert.Assert(t, acc >= gym.Accuracy)
+	assert.Assert(t, acc >= 0.96)
 }
