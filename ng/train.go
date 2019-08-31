@@ -65,9 +65,8 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
 	}()
 
 	nextTime := gym.everyTime()
-	input := gym.Input.Push(gym.BatchSize)
 
-	if net, err = nn.Bind(ctx, nb, input, gym.Loss); err != nil {
+	if net, err = nn.Bind(ctx, nb, gym.Input, gym.Loss); err != nil {
 		return 0, nn.Params{}, err
 	}
 
@@ -93,7 +92,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (float32, nn.Params, error) {
 		return 0, nn.Params{}, err
 	}
 
-	if li, ti, err = gym.Dataset.Open(seed+1, gym.BatchSize); err != nil {
+	if li, ti, err = gym.Dataset.Open(seed+1, net.BatchSize); err != nil {
 		return 0, nn.Params{}, err
 	}
 

@@ -21,8 +21,7 @@ func Test_mnistMLP0(t *testing.T) {
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
 		Loss:      &nn.LabelCrossEntropyLoss{},
-		BatchSize: 32,
-		Input:     mx.Dim(1, 28, 28),
+		Input:     mx.Dim(32, 1, 28, 28),
 		Epochs:    5,
 		Verbose:   ng.Printing,
 		Every:     1 * time.Second,

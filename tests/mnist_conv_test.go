@@ -24,8 +24,7 @@ func Test_mnistConv0(t *testing.T) {
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
 		Loss:      &nn.LabelCrossEntropyLoss{},
-		BatchSize: 32,
-		Input:     mx.Dim(1, 28, 28),
+		Input:     mx.Dim(32, 1, 28, 28),
 		Epochs:    5,
 		Verbose:   ng.Printing,
 		Every:     1 * time.Second,
@@ -41,10 +40,12 @@ func Test_mnistConv0(t *testing.T) {
 	err = params.Save(fu.CacheFile("tests/mnistConv0.params"))
 	assert.NilError(t, err)
 
-	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(32, 1, 28, 28), nil)
+	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(10, 1, 28, 28), nil)
 	assert.NilError(t, err)
 	err = net.LoadParamsFile(fu.CacheFile("tests/mnistConv0.params"), false)
 	assert.NilError(t, err)
+	_ = net.PrintSummary(false)
+
 	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
 	assert.Assert(t, acc >= 0.98)
 }

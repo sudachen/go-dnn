@@ -19,7 +19,6 @@ const (
 type Gym struct {
 	Optimizer nn.OptimizerConf
 	Loss      mx.Loss
-	BatchSize int
 	Input     mx.Dimension
 	Epochs    int
 	Dataset   Dataset

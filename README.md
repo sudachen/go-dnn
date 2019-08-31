@@ -9,6 +9,7 @@
 ```golang
 import (
 	"github.com/sudachen/go-dnn/data/mnist"
+	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx"
 	"github.com/sudachen/go-dnn/ng"
 	"github.com/sudachen/go-dnn/nn"
@@ -29,12 +30,11 @@ func Test_mnistConv0(t *testing.T) {
 
 	gym := &ng.Gym{
 		Optimizer: &nn.Adam{Lr: .001},
-		Loss: 	   &nn.LabelCrossEntropyLoss{},
-		BatchSize: 64,
-		Input:     mx.Dim(1, 28, 28),
+		Loss:      &nn.LabelCrossEntropyLoss{},
+		Input:     mx.Dim(32, 1, 28, 28),
 		Epochs:    5,
-		Sprint:    5 * time.Second,
 		Verbose:   ng.Printing,
+		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
 		AccFunc:   ng.Classification,
 		Accuracy:  0.98,
@@ -47,14 +47,15 @@ func Test_mnistConv0(t *testing.T) {
 	err = params.Save(fu.CacheFile("tests/mnistConv0.params"))
 	assert.NilError(t, err)
 
-	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(32, 1, 28, 28), nil)
+	net, err := nn.Bind(mx.CPU, mnistConv0, mx.Dim(10, 1, 28, 28), nil)
 	assert.NilError(t, err)
 	err = net.LoadParamsFile(fu.CacheFile("tests/mnistConv0.params"), false)
 	assert.NilError(t, err)
+	_ = net.PrintSummary(false)
+
 	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
 	assert.Assert(t, acc >= 0.98)
 }
-
 ```
 ```text
 === RUN   Test_mnistConv0
@@ -81,13 +82,28 @@ sym16            | mean                | (1)           |         0
 sym17            | make_loss           | (1)           |         0
 ------------------------------------------------------------------
 Total params: 129388
-Epoch 0, batch 242, loss: 0.116668604
-Epoch 0, batch 613, loss: 0.08666626
-Epoch 0, batch 990, loss: 0.044911027
-Epoch 0, batch 1363, loss: 0.11836946
-Epoch 0, batch 1741, loss: 0.082941115
+Epoch 0, batch 226, loss: 0.084210135
+Epoch 0, batch 597, loss: 0.08045147
+Epoch 0, batch 976, loss: 0.080270246
+Epoch 0, batch 1360, loss: 0.13755605
+Epoch 0, batch 1747, loss: 0.06917396
 Epoch 0, accuracy: 0.985, final loss: 0.0316
 Achieved reqired accuracy 0.98
-Accuracy over 312*32 batchs: 0.985
---- PASS: Test_mnistConv0 (12.35s)
+Symbol           | Operation           | Output        |  Params #
+------------------------------------------------------------------
+_input           | null                | (10,1,28,28)  |         0
+Convolution01    | Convolution((5,5)/) | (10,20,24,24) |       520
+sym05            | Activation(tanh)    | (10,20,24,24) |         0
+sym06            | Pooling(max)        | (10,20,12,12) |         0
+Convolution02    | Convolution((5,5)/) | (10,50,8,8)   |     25050
+sym07            | Activation(tanh)    | (10,50,8,8)   |         0
+sym08            | Pooling(max)        | (10,50,4,4)   |         0
+FullyConnected03 | FullyConnected      | (10,128)      |    102528
+sym09            | Activation(tanh)    | (10,128)      |         0
+FullyConnected04 | FullyConnected      | (10,10)       |      1290
+sym10            | SoftmaxActivation() | (10,10)       |         0
+------------------------------------------------------------------
+Total params: 129388
+Accuracy over 1000*10 batchs: 0.985
+--- PASS: Test_mnistConv0 (12.23s)
 ```
