@@ -106,7 +106,7 @@ var testLabel = dsFile{"t10k-labels-idx1-ubyte.gz", "763e7fa3757d93b0cdec073cef0
 
 type Dataset struct{}
 
-func (d Dataset) Open(seed int, batchSize int) (ng.Batchs, ng.Batchs, error) {
+func (d Dataset) Open(batchSize int) (ng.Batchs, ng.Batchs, error) {
 	for _, v := range []*dsFile{&trainData, &trainLabel, &testData, &testLabel} {
 		if err := v.Download(fu.CacheDir(cacheDir)); err != nil {
 			return nil, nil, err
@@ -114,12 +114,12 @@ func (d Dataset) Open(seed int, batchSize int) (ng.Batchs, ng.Batchs, error) {
 	}
 
 	trainIter := &Batchs{BatchSize: batchSize}
-	if err := trainIter.Load(&trainData, &trainLabel, seed); err != nil {
+	if err := trainIter.Load(&trainData, &trainLabel); err != nil {
 		return nil, nil, err
 	}
 
 	testIter := &Batchs{BatchSize: batchSize}
-	if err := testIter.Load(&testData, &testLabel, seed); err != nil {
+	if err := testIter.Load(&testData, &testLabel); err != nil {
 		return nil, nil, err
 	}
 
@@ -137,7 +137,11 @@ type Batchs struct {
 	DataBatch, LabelBatch []float32
 }
 
-func (b *Batchs) Load(dataFile, labelFile *dsFile, seed int) error {
+func (b *Batchs) Randomize(seed int) {
+	b.RndIndex = fu.RandomIndex(b.Batchs, seed)
+}
+
+func (b *Batchs) Load(dataFile, labelFile *dsFile) error {
 	var (
 		data, label []byte
 		err         error
@@ -166,20 +170,8 @@ func (b *Batchs) Load(dataFile, labelFile *dsFile, seed int) error {
 	b.DataLength = int(binary.BigEndian.Uint32(data[8:12]) * binary.BigEndian.Uint32(data[12:16]))
 	b.LabelLength = 1
 
-	if seed != 0 {
-		b.RndIndex = fu.RandomIndex(b.Batchs, seed)
-	}
-
 	b.LabelBatch = make([]float32, b.LabelLength*b.BatchSize)
 	b.DataBatch = make([]float32, b.DataLength*b.BatchSize)
-	return nil
-}
-
-func (b *Batchs) Skip(skip int) error {
-	if skip < 0 || b.Index+skip > b.Batchs-1 {
-		return fmt.Errorf("dataset iterator out of range")
-	}
-	b.Index += skip
 	return nil
 }
 
