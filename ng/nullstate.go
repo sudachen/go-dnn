@@ -6,6 +6,7 @@ import (
 )
 
 type nullState struct {
+	nn.AccFunc
 	epochs int
 }
 
@@ -33,6 +34,10 @@ func (s *nullState) Preset(net *nn.Network) error {
 
 func (s *nullState) LogBatchLoss(loss float32) error {
 	return nil
+}
+
+func (s *nullState) GetAccFunc() nn.AccFunc {
+	return s.AccFunc
 }
 
 func (s *nullState) FinishEpoch(accuracy float32, net *nn.Network) error {

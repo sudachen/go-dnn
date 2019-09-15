@@ -77,7 +77,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (acc float32, params nn.Param
 	if gym.State != nil {
 		state = gym.State
 	} else {
-		state = &nullState{}
+		state = &nullState{AccFunc: gym.AccFunc}
 	}
 
 	if gym.Seed == 0 {
@@ -154,12 +154,12 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (acc float32, params nn.Param
 		opt.Release()
 		opt = nil
 
-		if err = state.FinishEpoch(acc, net); err != nil {
+		ti.Randomize(seed+epoch)
+		if acc, err = Measure(net, ti, gym.AccFunc, Silent); err != nil {
 			return
 		}
 
-		ti.Randomize(seed+epoch)
-		if acc, err = Measure(net, ti, gym.AccFunc, Silent); err != nil {
+		if err = state.FinishEpoch(acc, net); err != nil {
 			return
 		}
 

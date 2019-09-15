@@ -364,7 +364,7 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 
 		name := s.name
 		if len(name) < 3 {
-			name = fmt.Sprintf("%s%02d", "sym", NextSymbolId())
+			name = fmt.Sprintf("%s@%s%02d", s.op.Value(), "sym", NextSymbolId())
 		}
 
 		if err := capi.ComposeSymbol(op, name, a...); err != nil {

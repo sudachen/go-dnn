@@ -39,6 +39,6 @@ func (bc *BlockConcat) Combine(s *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx
 	return mx.Concat(b...), g, nil
 }
 
-func Concat(b []Block) Block {
+func Concat(b ...Block) Block {
 	return &BlockConcat{b}
 }

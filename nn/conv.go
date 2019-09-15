@@ -15,13 +15,17 @@ type Convolution struct {
 	BiasInit   mx.Inite // &nn.Const{0} by default
 	NoBias     bool
 	Groups     bool
+	Name       string
 }
 
 func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var (
 		out, weight, bias *mx.Symbol
 	)
-	ns := fmt.Sprintf("Convolution%02d", mx.NextSymbolId())
+	ns := ly.Name
+	if ns == "" {
+		ns = fmt.Sprintf("Convolution%02d", mx.NextSymbolId())
+	}
 	weight = mx.Var(ns+"_weight", ly.WeightInit)
 	if !ly.NoBias {
 		init := ly.BiasInit
@@ -43,6 +47,7 @@ type MaxPool struct {
 	Stride  mx.Dimension
 	Padding mx.Dimension
 	Ceil    bool
+	Name    string
 }
 
 func (ly *MaxPool) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {

@@ -35,6 +35,7 @@ const (
 	KeyFlatten
 	KeyNumHidden
 	KeyMultiOutput
+	KeyNumArgs
 	KeyNoKey
 )
 
@@ -70,6 +71,7 @@ var keymap = map[MxnetKey]string{
 	KeyFlatten:       "flatten",
 	KeyMultiOutput:   "multi_output",
 	KeyNumHidden:     "num_hidden",
+	KeyNumArgs: 	  "num_args",
 }
 
 func (k MxnetKey) Value() string {
@@ -125,6 +127,8 @@ const (
 	OpFullyConnected
 	OpFlatten
 	OpLog
+	OpCosh
+	OpNot
 	OpNoOp
 )
 
@@ -167,7 +171,9 @@ var opmap = map[MxnetOp]string{
 	OpPooling:        "Pooling",
 	OpFullyConnected: "FullyConnected",
 	OpFlatten:        "Flatten",
+	OpNot:			  "logical_not",
 	OpLog:            "log",
+	OpCosh:			  "cosh",
 }
 
 func (o MxnetOp) Value() string {

@@ -3,6 +3,7 @@ package mx
 import (
 	"fmt"
 	"github.com/sudachen/go-dnn/mx/capi"
+	"strings"
 )
 
 const (
@@ -121,6 +122,18 @@ func Log(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpLog, args: []*Symbol{a}}
 }
 
+func Cosh(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpCosh, args: []*Symbol{a}}
+}
+
+func LogCosh(a *Symbol) *Symbol {
+	return Log(Cosh(a))
+}
+
+func Not(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpNot, args: []*Symbol{a}}
+}
+
 func Var(name string, opt ...interface{}) *Symbol {
 	s := &Symbol{op: OpVar_, name: name}
 	for _, t := range opt {
@@ -211,30 +224,73 @@ func SoftmaxCrossEntropy(a, b *Symbol, axis ...int) *Symbol {
 	return s
 }
 
-func Sum(a *Symbol, batch bool) *Symbol {
+func formatAxis(axis ...int) string {
+	if len(axis) == 1 {
+		switch axis[0] {
+		case 0:  return "0"
+		case 1:  return "1"
+		case -1: return "-1"
+		default: return fmt.Sprintf("%d",axis[0])
+		}
+	} else {
+		s := make([]string,len(axis))
+		for i,a := range axis {
+			switch a {
+			case 0:  s[i] = "0"
+			case 1:  s[i] = "1"
+			case -1: s[i] = "-1"
+			default: s[i] = fmt.Sprintf("%d",a)
+			}
+		}
+		return "("+strings.Join(s,",")+")"
+	}
+}
+
+func Sum(a *Symbol, axis ...int) *Symbol {
 	s := &Symbol{op: capi.OpSum, args: []*Symbol{a}}
-	if batch {
+	if len(axis) > 0 {
 		s.attr = map[capi.MxnetKey]string{
-			capi.KeyExclude: "1",
-			capi.KeyAxis:    "0",
+			capi.KeyAxis: formatAxis(axis...),
 		}
 	}
 	return s
 }
 
-func Mean(a *Symbol, batch bool) *Symbol {
-	s := &Symbol{op: capi.OpMean, args: []*Symbol{a}}
-	if batch {
+func SumXl(a *Symbol, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpSum, args: []*Symbol{a}}
+	if len(axis) > 0 {
 		s.attr = map[capi.MxnetKey]string{
 			capi.KeyExclude: "1",
-			capi.KeyAxis:    "0",
+			capi.KeyAxis: formatAxis(axis...),
+		}
+	}
+	return s
+}
+
+func Mean(a *Symbol, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpMean, args: []*Symbol{a}}
+	if len(axis) > 0 {
+		s.attr = map[capi.MxnetKey]string{
+			capi.KeyAxis: formatAxis(axis...),
+		}
+	}
+	return s
+}
+
+func MeanXl(a *Symbol, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpMean, args: []*Symbol{a}}
+	if len(axis) > 0 {
+		s.attr = map[capi.MxnetKey]string{
+			capi.KeyExclude: "1",
+			capi.KeyAxis: formatAxis(axis...),
 		}
 	}
 	return s
 }
 
 func Concat(a ...*Symbol) *Symbol {
-	return &Symbol{op: capi.OpConcat, args: a}
+	return &Symbol{op: capi.OpConcat, args: a,
+		attr: map[capi.MxnetKey]string{capi.KeyNumArgs: fmt.Sprintf("%d", len(a))}}
 }
 
 func Conv(a, weight, bias *Symbol, channels int, kernel, stride, padding Dimension, groups bool) *Symbol {

@@ -37,6 +37,7 @@ type State interface {
 	Preset(*nn.Network) error
 	LogBatchLoss(loss float32) error
 	NextEpoch(maxEpochs int) (int, error)
+	GetAccFunc() nn.AccFunc
 	FinishEpoch(accuracy float32, net *nn.Network) error
 }
 

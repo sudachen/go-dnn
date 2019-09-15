@@ -11,13 +11,13 @@ func (*L0Loss) Loss(out *mx.Symbol, _ *mx.Symbol) (*mx.Symbol, bool) {
 type L1Loss struct{}
 
 func (*L1Loss) Loss(out *mx.Symbol, label *mx.Symbol) (*mx.Symbol, bool) {
-	return mx.Mean(mx.Abs(mx.Sub(out, label)), false), false
+	return mx.Mean(mx.Abs(mx.Sub(out, label))), false
 }
 
 type L2Loss struct{}
 
 func (*L2Loss) Loss(out *mx.Symbol, label *mx.Symbol) (*mx.Symbol, bool) {
-	return mx.Mean(mx.Square(mx.Sub(out, label)), false), false
+	return mx.Mean(mx.Square(mx.Sub(out, label))), false
 }
 
 type SoftmaxCrossEntropyLoss struct{}
@@ -31,5 +31,5 @@ type LabelCrossEntropyLoss struct {
 }
 
 func (l *LabelCrossEntropyLoss) Loss(out *mx.Symbol, label *mx.Symbol) (*mx.Symbol, bool) {
-	return mx.Mean(mx.Mul(mx.Log(mx.Pick(out, label)), -1), false), true
+	return mx.Mean(mx.Mul(mx.Log(mx.Pick(out, label)), -1)), true
 }

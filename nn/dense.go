@@ -18,13 +18,17 @@ type FullyConnected struct {
 	BiasInit   mx.Inite // &nn.Const{0} by default
 	NoBias     bool
 	NoFlatten  bool
+	Name       string
 }
 
 func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var (
 		out, weight, bias *mx.Symbol
 	)
-	ns := fmt.Sprintf("FullyConnected%02d", mx.NextSymbolId())
+	ns := ly.Name
+	if ns == "" {
+		ns = fmt.Sprintf("FullyConnected%02d", mx.NextSymbolId())
+	}
 	weight = mx.Var(ns+"_weight", ly.WeightInit)
 	if !ly.NoBias {
 		init := ly.BiasInit
