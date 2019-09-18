@@ -19,11 +19,11 @@ import (
 )
 
 var mnistConv0 = nn.Connect(
-	&nn.Convolution{Channels: 20, Kernel: mx.Dim(5, 5), Activation: nn.Tanh},
+	&nn.Convolution{Channels: 24, Kernel: mx.Dim(3, 3), Activation: nn.ReLU},
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
-	&nn.Convolution{Channels: 50, Kernel: mx.Dim(5, 5), Activation: nn.Tanh},
+	&nn.Convolution{Channels: 32, Kernel: mx.Dim(5, 5), Activation: nn.ReLU, BatchNorm: true},
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
-	&nn.FullyConnected{Size: 128, Activation: nn.Tanh},
+	&nn.FullyConnected{Size: 32, Activation: nn.Swish, BatchNorm: true},
 	&nn.FullyConnected{Size: 10, Activation: nn.Softmax})
 
 func Test_mnistConv0(t *testing.T) {
@@ -56,54 +56,57 @@ func Test_mnistConv0(t *testing.T) {
 	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
 	assert.Assert(t, acc >= 0.98)
 }
+
 ```
 ```text
-=== RUN   Test_mnistConv0
-Network Identity: 62b2117bed4ef63412495b6dfe582a065759cb17
-Symbol           | Operation           | Output        |  Params #
-------------------------------------------------------------------
-_input           | null                | (32,1,28,28)  |         0
-Convolution01    | Convolution((5,5)/) | (32,20,24,24) |       520
-sym05            | Activation(tanh)    | (32,20,24,24) |         0
-sym06            | Pooling(max)        | (32,20,12,12) |         0
-Convolution02    | Convolution((5,5)/) | (32,50,8,8)   |     25050
-sym07            | Activation(tanh)    | (32,50,8,8)   |         0
-sym08            | Pooling(max)        | (32,50,4,4)   |         0
-FullyConnected03 | FullyConnected      | (32,128)      |    102528
-sym09            | Activation(tanh)    | (32,128)      |         0
-FullyConnected04 | FullyConnected      | (32,10)       |      1290
-sym10            | SoftmaxActivation() | (32,10)       |         0
-sym11            | BlockGrad           | (32,10)       |         0
-sym12            | make_loss           | (32,10)       |         0
-sym13            | pick                | (32,1)        |         0
-sym14            | log                 | (32,1)        |         0
-sym15            | _mul_scalar         | (32,1)        |         0
-sym16            | mean                | (1)           |         0
-sym17            | make_loss           | (1)           |         0
-------------------------------------------------------------------
-Total params: 129388
-Epoch 0, batch 226, loss: 0.084210135
-Epoch 0, batch 597, loss: 0.08045147
-Epoch 0, batch 976, loss: 0.080270246
-Epoch 0, batch 1360, loss: 0.13755605
-Epoch 0, batch 1747, loss: 0.06917396
-Epoch 0, accuracy: 0.985, final loss: 0.0316
+Network Identity: 19f5235a3e21c185702fc580808dcac2b00cc955
+Symbol              | Operation            | Output        |  Params #
+----------------------------------------------------------------------
+_input              | null                 | (32,1,28,28)  |         0
+Convolution01       | Convolution((3,3)//) | (32,24,26,26) |       240
+Convolution01$A     | Activation(relu)     | (32,24,26,26) |         0
+Pooling@sym05       | Pooling(max)         | (32,24,13,13) |         0
+Convolution02       | Convolution((5,5)//) | (32,32,9,9)   |     19232
+Convolution02$BN    | BatchNorm            | (32,32,9,9)   |       128
+Convolution02$A     | Activation(relu)     | (32,32,9,9)   |         0
+Pooling@sym06       | Pooling(max)         | (32,32,4,4)   |         0
+FullyConnected03    | FullyConnected       | (32,32)       |     16416
+FullyConnected03$BN | BatchNorm            | (32,32)       |       128
+sigmoid@sym07       | sigmoid              | (32,32)       |         0
+FullyConnected03$A  | elemwise_mul         | (32,32)       |         0
+FullyConnected04    | FullyConnected       | (32,10)       |       330
+FullyConnected04$A  | SoftmaxActivation()  | (32,10)       |         0
+BlockGrad@sym08     | BlockGrad            | (32,10)       |         0
+make_loss@sym09     | make_loss            | (32,10)       |         0
+pick@sym10          | pick                 | (32,1)        |         0
+log@sym11           | log                  | (32,1)        |         0
+_mul_scalar@sym12   | _mul_scalar          | (32,1)        |         0
+mean@sym13          | mean                 | (1)           |         0
+make_loss@sym14     | make_loss            | (1)           |         0
+----------------------------------------------------------------------
+Total params: 36474
+Epoch 0, batch 369, loss: 0.12668017
+Epoch 0, batch 1183, loss: 0.05189542
+Epoch 0, accuracy: 0.988, final loss: 0.0515
 Achieved reqired accuracy 0.98
-Symbol           | Operation           | Output        |  Params #
-------------------------------------------------------------------
-_input           | null                | (10,1,28,28)  |         0
-Convolution01    | Convolution((5,5)/) | (10,20,24,24) |       520
-sym05            | Activation(tanh)    | (10,20,24,24) |         0
-sym06            | Pooling(max)        | (10,20,12,12) |         0
-Convolution02    | Convolution((5,5)/) | (10,50,8,8)   |     25050
-sym07            | Activation(tanh)    | (10,50,8,8)   |         0
-sym08            | Pooling(max)        | (10,50,4,4)   |         0
-FullyConnected03 | FullyConnected      | (10,128)      |    102528
-sym09            | Activation(tanh)    | (10,128)      |         0
-FullyConnected04 | FullyConnected      | (10,10)       |      1290
-sym10            | SoftmaxActivation() | (10,10)       |         0
-------------------------------------------------------------------
-Total params: 129388
-Accuracy over 1000*10 batchs: 0.985
---- PASS: Test_mnistConv0 (12.23s)
+Symbol              | Operation            | Output        |  Params #
+----------------------------------------------------------------------
+_input              | null                 | (10,1,28,28)  |         0
+Convolution01       | Convolution((3,3)//) | (10,24,26,26) |       240
+Convolution01$A     | Activation(relu)     | (10,24,26,26) |         0
+Pooling@sym05       | Pooling(max)         | (10,24,13,13) |         0
+Convolution02       | Convolution((5,5)//) | (10,32,9,9)   |     19232
+Convolution02$BN    | BatchNorm            | (10,32,9,9)   |       128
+Convolution02$A     | Activation(relu)     | (10,32,9,9)   |         0
+Pooling@sym06       | Pooling(max)         | (10,32,4,4)   |         0
+FullyConnected03    | FullyConnected       | (10,32)       |     16416
+FullyConnected03$BN | BatchNorm            | (10,32)       |       128
+sigmoid@sym07       | sigmoid              | (10,32)       |         0
+FullyConnected03$A  | elemwise_mul         | (10,32)       |         0
+FullyConnected04    | FullyConnected       | (10,10)       |       330
+FullyConnected04$A  | SoftmaxActivation()  | (10,10)       |         0
+----------------------------------------------------------------------
+Total params: 36474
+Accuracy over 1000*10 batchs: 0.988
+--- PASS: Test_mnistConv0 (5.90s)
 ```
