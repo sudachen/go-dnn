@@ -18,12 +18,14 @@ type FullyConnected struct {
 	BiasInit   mx.Inite // &nn.Const{0} by default
 	NoBias     bool
 	NoFlatten  bool
+	BatchNorm  bool
 	Name       string
 }
 
 func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var (
 		out, weight, bias *mx.Symbol
+		err error
 	)
 	ns := ly.Name
 	if ns == "" {
@@ -39,8 +41,14 @@ func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, [
 	}
 	out = mx.FullyConnected(in, weight, bias, ly.Size, !ly.NoFlatten)
 	out.SetName(ns)
+	if ly.BatchNorm {
+		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
+			return nil, nil, err
+		}
+	}
 	if ly.Activation != nil {
 		out = ly.Activation(out)
+		out.SetName(ns+"$A")
 	}
 	out = out
 	return out, g, nil

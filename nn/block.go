@@ -42,3 +42,32 @@ func (bc *BlockConcat) Combine(s *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx
 func Concat(b ...Block) Block {
 	return &BlockConcat{b}
 }
+
+type BlockStack struct {
+	blocks []Block
+	axis1  bool
+}
+
+func (bc *BlockStack) Combine(s *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
+	var err error
+	b := make([]*mx.Symbol,len(bc.blocks),len(bc.blocks))
+	for i, v := range bc.blocks {
+		if b[i], _, err = v.Combine(s, g...); err != nil {
+			return nil, nil, err
+		}
+	}
+	if bc.axis1 {
+		s = mx.Stack1(b...)
+	} else {
+		s = mx.Stack(b...)
+	}
+	return s, g, nil
+}
+
+func TransStack(b ...Block) Block {
+	return &BlockStack{b, true}
+}
+
+func Stack(b ...Block) Block {
+	return &BlockStack{b, false}
+}

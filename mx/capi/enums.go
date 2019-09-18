@@ -20,6 +20,7 @@ const (
 	KeyBeta1
 	KeyBeta2
 	KeyEpsilon
+	KeyEps
 	KeyLoc
 	KeyScale
 	KeyKeepdims
@@ -55,6 +56,7 @@ var keymap = map[MxnetKey]string{
 	KeyBeta1:         "beta1",
 	KeyBeta2:         "beta2",
 	KeyEpsilon:       "epsilon",
+	KeyEps:           "eps",
 	KeyNormalization: "normalization",
 	KeyLoc:           "loc",
 	KeyScale:         "scale",
@@ -102,6 +104,7 @@ const (
 	OpDivScalar
 	OpDivScalarR
 	OpMean
+	OpStack
 	OpAbs
 	OpBlockGrad
 	OpMakeLoss
@@ -129,6 +132,8 @@ const (
 	OpLog
 	OpCosh
 	OpNot
+	OpSigma
+	OpBatchNorm
 	OpNoOp
 )
 
@@ -147,6 +152,7 @@ var opmap = map[MxnetOp]string{
 	OpDivScalar:      "_div_scalar",
 	OpDivScalarR:     "_rdiv_scalar",
 	OpMean:           "mean",
+	OpStack:		  "stack",
 	OpAbs:            "abs",
 	OpBlockGrad:      "BlockGrad",
 	OpMakeLoss:       "make_loss",
@@ -174,6 +180,8 @@ var opmap = map[MxnetOp]string{
 	OpNot:			  "logical_not",
 	OpLog:            "log",
 	OpCosh:			  "cosh",
+	OpSigma:		  "sigmoid",
+	OpBatchNorm:      "BatchNorm",
 }
 
 func (o MxnetOp) Value() string {

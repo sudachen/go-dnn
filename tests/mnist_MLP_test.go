@@ -13,8 +13,8 @@ import (
 
 var mnistMLP0 = nn.Connect(
 	&nn.FullyConnected{Size: 128, Activation: nn.ReLU},
-	&nn.FullyConnected{Size: 64, Activation: nn.ReLU},
-	&nn.FullyConnected{Size: 10, Activation: nn.Softmax})
+	&nn.FullyConnected{Size: 64, Activation: nn.Swish, BatchNorm: true},
+	&nn.FullyConnected{Size: 10, Activation: nn.Softmax, BatchNorm: true})
 
 func Test_mnistMLP0(t *testing.T) {
 

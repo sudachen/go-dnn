@@ -12,11 +12,11 @@ import (
 )
 
 var mnistConv0 = nn.Connect(
-	&nn.Convolution{Channels: 20, Kernel: mx.Dim(5, 5), Activation: nn.Tanh},
+	&nn.Convolution{Channels: 24, Kernel: mx.Dim(3, 3), Activation: nn.ReLU},
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
-	&nn.Convolution{Channels: 50, Kernel: mx.Dim(5, 5), Activation: nn.Tanh},
+	&nn.Convolution{Channels: 32, Kernel: mx.Dim(5, 5), Activation: nn.ReLU, BatchNorm: true},
 	&nn.MaxPool{Kernel: mx.Dim(2, 2), Stride: mx.Dim(2, 2)},
-	&nn.FullyConnected{Size: 128, Activation: nn.Tanh},
+	&nn.FullyConnected{Size: 32, Activation: nn.Swish, BatchNorm: true},
 	&nn.FullyConnected{Size: 10, Activation: nn.Softmax})
 
 func Test_mnistConv0(t *testing.T) {

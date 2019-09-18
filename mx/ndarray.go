@@ -56,8 +56,8 @@ func (c Context) Array(tp Dtype, d Dimension, vals ...interface{}) *NDArray {
 		return Errayf("failed to create array %v%v: bad dimension", tp.String(), d.String())
 	}
 	a := &NDArray{ctx: c, dim: d, dtype: tp}
-	if h, e := capi.NewNDArrayHandle(c.DevType(), c.DevNo(), int(tp), d.Shape, d.Len); e != 0 {
-		return Errayf("failed to create array %v%v: api error", tp.String(), d.String())
+	if h, err := capi.NewNDArrayHandle(c.DevType(), c.DevNo(), int(tp), d.Shape, d.Len); err != nil {
+		return Errayf("failed to create array %v%v: %v", tp.String(), d.String(), err.Error())
 	} else {
 		a.handle = h
 	}

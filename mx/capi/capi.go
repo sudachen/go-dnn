@@ -182,11 +182,13 @@ func ImperativeInvokeInOut1(op MxnetOp, h NDArrayHandle, o NDArrayHandle, a ...i
 	return nil
 }
 
-func NewNDArrayHandle(devType int, devNo int, dtype int, shape [4]int, slen int) (NDArrayHandle, int) {
+func NewNDArrayHandle(devType int, devNo int, dtype int, shape [4]int, slen int) (NDArrayHandle, error) {
 	var a C.NDArrayHandle
 	s := [4]C.uint{C.uint(shape[0]), C.uint(shape[1]), C.uint(shape[2]), C.uint(shape[3])}
-	e := C.MXNDArrayCreateEx(&s[0], C.uint(slen), C.int(devType), C.int(devNo), 0, C.int(dtype), &a)
-	return NDArrayHandle(a), int(e)
+	if e := C.MXNDArrayCreateEx(&s[0], C.uint(slen), C.int(devType), C.int(devNo), 0, C.int(dtype), &a); e != 0 {
+		return nil, fmt.Errorf("failed to create ndarry: %v", mxLastError())
+	}
+	return NDArrayHandle(a), nil
 }
 
 func GetNDArrayRawData(handle NDArrayHandle, p unsafe.Pointer, len int) int {
@@ -253,7 +255,11 @@ func ComposeSymbol(handle SymbolHandle, name string, a ...SymbolHandle) error {
 	return nil
 }
 
-func ListNames(handle SymbolHandle, outputs bool) ([]string, error) {
+const ArgumentsNames = 0
+const OutoutNames = 1
+const AuxNames = 2
+
+func ListNames(handle SymbolHandle, kind int) ([]string, error) {
 	var (
 		i      int
 		e      C.int
@@ -262,13 +268,19 @@ func ListNames(handle SymbolHandle, outputs bool) ([]string, error) {
 		r      []string
 	)
 
-	if outputs {
+	switch kind {
+	case ArgumentsNames:
+		e = C.MXSymbolListArguments(
+			handle,
+			&out_nn,
+			&out_ns)
+	case OutoutNames:
 		e = C.MXSymbolListOutputs(
 			handle,
 			&out_nn,
 			&out_ns)
-	} else {
-		e = C.MXSymbolListArguments(
+	case AuxNames:
+		e = C.MXSymbolListAuxiliaryStates(
 			handle,
 			&out_nn,
 			&out_ns)
@@ -291,7 +303,12 @@ func ListNames(handle SymbolHandle, outputs bool) ([]string, error) {
 	return r, nil
 }
 
-func InferShapes(handle SymbolHandle, with map[string][]int, withOuts bool) (map[string][]int, error) {
+const WithArguments = 1
+const WithOutputs = 2
+const WithAuxStates = 4
+const WithoutOutput = 8
+
+func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[string][]int, error) {
 
 	if len(with) > MaxArgsCount {
 		return nil, fmt.Errorf("to many shapes in args")
@@ -350,19 +367,19 @@ func InferShapes(handle SymbolHandle, with map[string][]int, withOuts bool) (map
 	}
 
 	r := make(map[string][]int)
-	names, err := ListNames(handle, false)
-	if err != nil {
-		return nil, err
+
+	if (selector & WithArguments) != 0 {
+		names, err := ListNames(handle, 0)
+		if err != nil {
+			return nil, err
+		}
+		for i, name := range names {
+			r[name] = shape_at(i, in_sn, in_sd)
+		}
 	}
 
-	for i, name := range names {
-		//if _, ok := with[name]; !ok {
-		r[name] = shape_at(i, in_sn, in_sd)
-		//}
-	}
-
-	if withOuts {
-		names, err = ListNames(handle, true)
+	if (selector & WithOutputs) != 0 {
+		names, err := ListNames(handle, 1)
 		if err != nil {
 			return nil, err
 		}
@@ -374,7 +391,22 @@ func InferShapes(handle SymbolHandle, with map[string][]int, withOuts bool) (map
 		}
 	}
 
-	r["_output"] = shape_at(0, out_sn, out_sd)
+	if (selector & WithAuxStates) != 0 {
+		names, err := ListNames(handle, 2)
+		if err != nil {
+			return nil, err
+		}
+
+		for i, name := range names {
+			if _, ok := with[name]; !ok {
+				r[name] = shape_at(i, aux_sn, aux_sd)
+			}
+		}
+	}
+
+	if (selector & WithoutOutput) == 0{
+		r["_output"] = shape_at(0, out_sn, out_sd)
+	}
 
 	return r, nil
 }
@@ -396,7 +428,7 @@ func GetInternals(s SymbolHandle) (SymbolHandle, error) {
 	return o, nil
 }
 
-func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads []NDArrayHandle) (ExecutorHandle, error) {
+func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads []NDArrayHandle, aux []NDArrayHandle) (ExecutorHandle, error) {
 	var r ExecutorHandle
 
 	ga := make([]C.uint, len(args))
@@ -404,6 +436,11 @@ func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads [
 		if grads[i] != nil {
 			ga[i] = 1
 		}
+	}
+
+	paux := aux
+	if len(aux) == 0 {
+		paux = []NDArrayHandle{nil}[:]
 	}
 
 	e := C.MXExecutorBind(
@@ -414,8 +451,8 @@ func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads [
 		&args[0],
 		&grads[0],
 		&ga[0],
-		C.uint(0),
-		nil,
+		C.uint(len(aux)),
+		&paux[0],
 		&r)
 
 	if e != 0 {

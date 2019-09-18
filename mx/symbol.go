@@ -288,6 +288,38 @@ func MeanXl(a *Symbol, axis ...int) *Symbol {
 	return s
 }
 
+func Stack(a ...*Symbol) *Symbol {
+	s := &Symbol{op: capi.OpStack, args: a,
+		attr: map[capi.MxnetKey]string{
+			capi.KeyNumArgs: fmt.Sprintf("%d", len(a)),
+		}}
+	return s
+}
+
+func Stack1(a ...*Symbol) *Symbol {
+	s := &Symbol{op: capi.OpStack, args: a,
+		attr: map[capi.MxnetKey]string{
+			capi.KeyNumArgs: fmt.Sprintf("%d", len(a)),
+			capi.KeyAxis: "-1",
+		}}
+	return s
+}
+
+func BatchNorm(a, gamma, beta, rmean, rvar *Symbol, mom, eps float32, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpBatchNorm, args: []*Symbol{a, gamma, beta, rmean, rvar}}
+	s.attr = map[capi.MxnetKey]string{}
+	if len(axis) > 0 {
+		s.attr[capi.KeyAxis] = formatAxis(axis...)
+	}
+	if mom != 0 {
+		s.attr[capi.KeyMomentum] = fmt.Sprintf("%v",mom)
+	}
+	if eps != 0 {
+		s.attr[capi.KeyEps] = fmt.Sprintf("%v",eps)
+	}
+	return s
+}
+
 func Concat(a ...*Symbol) *Symbol {
 	return &Symbol{op: capi.OpConcat, args: a,
 		attr: map[capi.MxnetKey]string{capi.KeyNumArgs: fmt.Sprintf("%d", len(a))}}
@@ -404,4 +436,8 @@ func FullyConnected(a, weight, bias *Symbol, size int, flatten bool) *Symbol {
 
 func Flatten(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpFlatten, args: []*Symbol{a}}
+}
+
+func Sigma(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpSigma, args: []*Symbol{a}}
 }

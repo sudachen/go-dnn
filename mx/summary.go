@@ -93,8 +93,8 @@ func (g *Graph) Summary(withLoss bool) (Summary, error) {
 							//n.Params += g.Input.Dim().Total()
 						} else if ly2.Name == "_label" {
 							//n.Params += g.Label.Dim().Total()
-						} else {
-							n.Params += g.Params[ly2.Name].Data.Dim().Total()
+						} else if p, ok := g.Params[ly2.Name]; ok {
+							n.Params += p.Data.Dim().Total()
 						}
 					} else {
 						n.Args = append(n.Args, SummryArg{ns[ly2.Name].No, ly2.Name})
@@ -108,7 +108,7 @@ func (g *Graph) Summary(withLoss bool) (Summary, error) {
 			} else if ly.Op == "Pooling" {
 				n.Operation += "(" + ly.Attrs["pool_type"] + ")"
 			} else if ly.Op == "Convolution" {
-				n.Operation += "(" + ly.Attrs["kernel"] + "/" + ly.Attrs["stride"] + ")"
+				n.Operation += "(" + ly.Attrs["kernel"] + "/" + ly.Attrs["pad"] + "/" + ly.Attrs["stride"] + ")"
 			}
 
 			if dim0, ok := shapes[ly.Name+"_output"]; ok {

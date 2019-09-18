@@ -15,12 +15,14 @@ type Convolution struct {
 	BiasInit   mx.Inite // &nn.Const{0} by default
 	NoBias     bool
 	Groups     bool
+	BatchNorm  bool
 	Name       string
 }
 
 func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var (
 		out, weight, bias *mx.Symbol
+		err error
 	)
 	ns := ly.Name
 	if ns == "" {
@@ -36,8 +38,14 @@ func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*m
 	}
 	out = mx.Conv(in, weight, bias, ly.Channels, ly.Kernel, ly.Stride, ly.Padding, ly.Groups)
 	out.SetName(ns)
+	if ly.BatchNorm {
+		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
+			return nil, nil, err
+		}
+	}
 	if ly.Activation != nil {
 		out = ly.Activation(out)
+		out.SetName(ns+"$A")
 	}
 	return out, g, nil
 }

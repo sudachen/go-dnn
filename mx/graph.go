@@ -41,6 +41,7 @@ type Graph struct {
 
 	vars    map[string]capi.SymbolHandle
 	symbols map[*Symbol]capi.SymbolHandle
+	auxs    []capi.NDArrayHandle
 
 	identity *GraphIdentity
 }
@@ -80,6 +81,10 @@ func (g *Graph) Release() {
 		v.Grad.Release()
 	}
 	g.Params = nil
+
+	for _, v := range g.auxs {
+		capi.ReleaseNDArry(v)
+	}
 }
 
 func (g *Graph) LoadParams(reader io.Reader) error {
@@ -135,7 +140,7 @@ func (g *Graph) GetShapes(withLoss bool) (map[string][]int, error) {
 		x["_label"] = label.Shape[:label.Len]
 	}
 
-	if shapes, err = capi.InferShapes(inter, x, true); err != nil {
+	if shapes, err = capi.InferShapes(inter, x, capi.WithArguments|capi.WithOutputs); err != nil {
 		return nil, err
 	}
 
@@ -161,13 +166,13 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 		d      Dimension
 	)
 	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if shapes, err = capi.InferShapes(g.symLast, x, false); err != nil {
+	if shapes, err = capi.InferShapes(g.symLast, x, capi.WithArguments|capi.WithAuxStates); err != nil {
 		return err
 	}
 	if g.Input = g.Ctx.Array(g.Dtype, input); g.Input.Err() != nil {
 		return g.Input.Err()
 	}
-	if names, err = capi.ListNames(g.symOut, false); err != nil {
+	if names, err = capi.ListNames(g.symOut, capi.ArgumentsNames); err != nil {
 		return err
 	}
 	if g.symLast != g.symOut && fu.Contains(names, "_label") {
@@ -176,7 +181,7 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 			d.Len -= 1
 		}
 		x["_label"] = d.Shape[:d.Len]
-		if shapes, err = capi.InferShapes(g.symOut, x, false); err != nil {
+		if shapes, err = capi.InferShapes(g.symOut, x, capi.WithArguments|capi.WithAuxStates); err != nil {
 			return err
 		}
 	}
@@ -207,7 +212,15 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 		}
 	}
 
-	if g.Exec, err = capi.Bind(g.symOut, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads); err != nil {
+	auxnam, _ := capi.ListNames(g.symOut, capi.AuxNames)
+	aux := make([]capi.NDArrayHandle, len(auxnam))
+	for i, name := range auxnam {
+		if p, ok := g.Params[name]; ok {
+			aux[i] = p.Data.handle
+		}
+	}
+
+	if g.Exec, err = capi.Bind(g.symOut, g.Ctx.DevType(), g.Ctx.DevNo(), args, grads, aux); err != nil {
 		return err
 	}
 
