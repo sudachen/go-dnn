@@ -50,7 +50,7 @@ type BlockStack struct {
 
 func (bc *BlockStack) Combine(s *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var err error
-	b := make([]*mx.Symbol,len(bc.blocks),len(bc.blocks))
+	b := make([]*mx.Symbol, len(bc.blocks), len(bc.blocks))
 	for i, v := range bc.blocks {
 		if b[i], _, err = v.Combine(s, g...); err != nil {
 			return nil, nil, err
@@ -70,4 +70,20 @@ func TransStack(b ...Block) Block {
 
 func Stack(b ...Block) Block {
 	return &BlockStack{b, false}
+}
+
+type ResidualBlock struct {
+	blocks []Block
+}
+
+func Residual(a ...Block) Block {
+	return &ResidualBlock{a}
+}
+
+func (rcb *ResidualBlock) Combine(a *mx.Symbol, b ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
+	c, b, err := Connect(rcb.blocks...).Combine(a, b...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return mx.Add(a, c), b, nil
 }

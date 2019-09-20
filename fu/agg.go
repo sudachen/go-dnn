@@ -4,7 +4,7 @@ import "math"
 
 func Sum(a ...float32) float32 {
 	var r float32 = 0
-	for _, v := range a{
+	for _, v := range a {
 		r += v
 	}
 	return r
@@ -12,15 +12,15 @@ func Sum(a ...float32) float32 {
 
 func Avg(a ...float32) float32 {
 	var r float64 = 0
-	for _, v := range a{
+	for _, v := range a {
 		r += float64(v)
 	}
-	return float32(r/float64(len(a)))
+	return float32(r / float64(len(a)))
 }
 
 func Min(a ...float32) float32 {
 	var r float32 = math.MaxFloat32
-	for _, v := range a{
+	for _, v := range a {
 		if v < r {
 			r = v
 		}
@@ -30,7 +30,7 @@ func Min(a ...float32) float32 {
 
 func Max(a ...float32) float32 {
 	var r float32 = -math.MaxFloat32
-	for _, v := range a{
+	for _, v := range a {
 		if v > r {
 			r = v
 		}
@@ -40,7 +40,7 @@ func Max(a ...float32) float32 {
 
 func AbsMax(a ...float32) float32 {
 	var r float32 = 0
-	for _, v := range a{
+	for _, v := range a {
 		if v < 0 {
 			v = -v
 		}
@@ -53,7 +53,7 @@ func AbsMax(a ...float32) float32 {
 
 func MinI(a ...int) int {
 	var r int = math.MaxInt32
-	for _, v := range a{
+	for _, v := range a {
 		if v < r {
 			r = v
 		}
@@ -61,18 +61,18 @@ func MinI(a ...int) int {
 	return r
 }
 
-func SubMul(c float32, a,b []float32) []float32 {
-	r := make([]float32,MinI(len(a),len(b)))
+func SubMul(c float32, a, b []float32) []float32 {
+	r := make([]float32, MinI(len(a), len(b)))
 	for i := range r {
-		r[i] = (a[i] - b[i])*c
+		r[i] = (a[i] - b[i]) * c
 	}
 	return r
 }
 
-func AddMul(c float32, a,b []float32) []float32 {
-	r := make([]float32,MinI(len(a),len(b)))
+func AddMul(c float32, a, b []float32) []float32 {
+	r := make([]float32, MinI(len(a), len(b)))
 	for i := range r {
-		r[i] = (a[i] + b[i])*c
+		r[i] = (a[i] + b[i]) * c
 	}
 	return r
 }
@@ -80,7 +80,7 @@ func AddMul(c float32, a,b []float32) []float32 {
 func FindMin(a []float32) (int, float32) {
 	var r float32 = math.MaxFloat32
 	var j int
-	for i, v := range a{
+	for i, v := range a {
 		if v < r {
 			j = i
 			r = v
@@ -92,7 +92,7 @@ func FindMin(a []float32) (int, float32) {
 func FindMax(a []float32) (int, float32) {
 	var r float32 = -math.MaxFloat32
 	var j int
-	for i, v := range a{
+	for i, v := range a {
 		if v > r {
 			j = i
 			r = v
@@ -101,7 +101,7 @@ func FindMax(a []float32) (int, float32) {
 	return j, r
 }
 
-func IfElse(t bool, a,b float32) float32 {
+func IfElse(t bool, a, b float32) float32 {
 	if t {
 		return a
 	}

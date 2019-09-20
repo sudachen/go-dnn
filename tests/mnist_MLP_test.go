@@ -26,8 +26,7 @@ func Test_mnistMLP0(t *testing.T) {
 		Verbose:   ng.Printing,
 		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
-		AccFunc:   ng.Classification,
-		Accuracy:  0.96,
+		Metric:    &ng.Classification{Accuracy: 0.96},
 		Seed:      42,
 	}
 
@@ -41,8 +40,8 @@ func Test_mnistMLP0(t *testing.T) {
 	_ = net1.PrintSummary(false)
 	err = net1.SetParams(params, false)
 	assert.NilError(t, err)
-	acc, err = ng.Measure(net1, &mnist.Dataset{}, ng.Classification, ng.Printing)
-	assert.Assert(t, acc >= 0.96)
+	ok, err := ng.Measure(net1, &mnist.Dataset{}, &ng.Classification{Accuracy: 0.96}, ng.Printing)
+	assert.Assert(t, ok)
 	err = net1.SaveParamsFile(fu.CacheFile("tests/mnistMLP0.params"))
 	assert.NilError(t, err)
 
@@ -50,6 +49,6 @@ func Test_mnistMLP0(t *testing.T) {
 	assert.NilError(t, err)
 	err = net2.LoadParamsFile(fu.CacheFile("tests/mnistMLP0.params"), false)
 	assert.NilError(t, err)
-	acc, err = ng.Measure(net2, &mnist.Dataset{}, ng.Classification, ng.Printing)
-	assert.Assert(t, acc >= 0.96)
+	ok, err = ng.Measure(net2, &mnist.Dataset{}, &ng.Classification{Accuracy: 0.96}, ng.Printing)
+	assert.Assert(t, ok)
 }

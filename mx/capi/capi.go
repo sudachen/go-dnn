@@ -191,12 +191,13 @@ func NewNDArrayHandle(devType int, devNo int, dtype int, shape [4]int, slen int)
 	return NDArrayHandle(a), nil
 }
 
-func GetNDArrayRawData(handle NDArrayHandle, p unsafe.Pointer, len int) int {
+func GetNDArrayRawData(handle NDArrayHandle, p unsafe.Pointer, len int) error {
 	if handle != nil {
-		e := C.MXNDArraySyncCopyToCPU(handle, p, C.ulong(len))
-		return int(e)
+		if e := C.MXNDArraySyncCopyToCPU(handle, p, C.ulong(len)); e != 0 {
+			return fmt.Errorf("failed to get raw data: %v", mxLastError())
+		}
 	}
-	return -1
+	return nil
 }
 
 func SetNDArrayRawData(handle NDArrayHandle, p unsafe.Pointer, len int) int {
@@ -404,7 +405,7 @@ func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[
 		}
 	}
 
-	if (selector & WithoutOutput) == 0{
+	if (selector & WithoutOutput) == 0 {
 		r["_output"] = shape_at(0, out_sn, out_sd)
 	}
 

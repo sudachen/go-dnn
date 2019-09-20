@@ -68,7 +68,7 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
 	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
 
-	opti, _ := opt.Init()
+	opti, _ := opt.Init(0)
 	mx.CPU.RandomSeed(42)
 
 	for n := 0; n < 200; n++ {

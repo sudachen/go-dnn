@@ -73,7 +73,7 @@ var keymap = map[MxnetKey]string{
 	KeyFlatten:       "flatten",
 	KeyMultiOutput:   "multi_output",
 	KeyNumHidden:     "num_hidden",
-	KeyNumArgs: 	  "num_args",
+	KeyNumArgs:       "num_args",
 }
 
 func (k MxnetKey) Value() string {
@@ -132,7 +132,9 @@ const (
 	OpLog
 	OpCosh
 	OpNot
-	OpSigma
+	OpSigmoid
+	OpTanh
+	OpSin
 	OpBatchNorm
 	OpNoOp
 )
@@ -152,7 +154,7 @@ var opmap = map[MxnetOp]string{
 	OpDivScalar:      "_div_scalar",
 	OpDivScalarR:     "_rdiv_scalar",
 	OpMean:           "mean",
-	OpStack:		  "stack",
+	OpStack:          "stack",
 	OpAbs:            "abs",
 	OpBlockGrad:      "BlockGrad",
 	OpMakeLoss:       "make_loss",
@@ -177,10 +179,12 @@ var opmap = map[MxnetOp]string{
 	OpPooling:        "Pooling",
 	OpFullyConnected: "FullyConnected",
 	OpFlatten:        "Flatten",
-	OpNot:			  "logical_not",
+	OpNot:            "logical_not",
 	OpLog:            "log",
-	OpCosh:			  "cosh",
-	OpSigma:		  "sigmoid",
+	OpCosh:           "cosh",
+	OpSin:            "sin",
+	OpTanh:           "tanh",
+	OpSigmoid:        "sigmoid",
 	OpBatchNorm:      "BatchNorm",
 }
 

@@ -21,7 +21,7 @@ func KeysOf(m interface{}) interface{} {
 		panic("parameter is not a map")
 	}
 	k := v.MapKeys()
-	keys := reflect.MakeSlice(reflect.SliceOf(v.Type().Key()),len(k),len(k))
+	keys := reflect.MakeSlice(reflect.SliceOf(v.Type().Key()), len(k), len(k))
 	for i, s := range k {
 		keys.Index(i).Set(s)
 	}
@@ -31,10 +31,10 @@ func KeysOf(m interface{}) interface{} {
 func MakeSetFrom(keys interface{}) interface{} {
 	cv := reflect.ValueOf(keys)
 	if cv.Kind() == reflect.Slice || cv.Kind() == reflect.Array {
-		m := reflect.MakeMap(reflect.MapOf(reflect.TypeOf(keys).Elem(),reflect.TypeOf(true)))
+		m := reflect.MakeMap(reflect.MapOf(reflect.TypeOf(keys).Elem(), reflect.TypeOf(true)))
 		t := reflect.ValueOf(true)
 		for i := 0; i < cv.Len(); i++ {
-			m.SetMapIndex(cv.Index(i),t)
+			m.SetMapIndex(cv.Index(i), t)
 		}
 		return m.Interface()
 	}

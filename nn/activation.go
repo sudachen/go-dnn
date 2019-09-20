@@ -6,11 +6,15 @@ import (
 )
 
 func Sigmoid(a *mx.Symbol) *mx.Symbol {
-	return mx.Activation(a, mx.Sigmoid)
+	return mx.Activation(a, mx.ActivSigmoid)
 }
 
 func Tanh(a *mx.Symbol) *mx.Symbol {
-	return mx.Activation(a, mx.Tanh)
+	return mx.Activation(a, mx.ActivTanh)
+}
+
+func Tanh25(a *mx.Symbol) *mx.Symbol {
+	return mx.Add(mx.Mul(mx.Activation(a, mx.ActivTanh), 0.5), 0.5)
 }
 
 func ReLU(a *mx.Symbol) *mx.Symbol {
@@ -34,13 +38,17 @@ func ChannelSoftmax(a *mx.Symbol) *mx.Symbol {
 }
 
 func Swish(a *mx.Symbol) *mx.Symbol {
-	return mx.Mul(mx.Sigma(a),a)
+	return mx.Mul(mx.Sigmoid(a), a)
+}
+
+func Sin(a *mx.Symbol) *mx.Symbol {
+	return mx.Sin(a)
 }
 
 type Activation struct {
-	Function func(*mx.Symbol) *mx.Symbol
+	Function  func(*mx.Symbol) *mx.Symbol
 	BatchNorm bool
-	Name string
+	Name      string
 }
 
 func (ly *Activation) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
@@ -65,7 +73,7 @@ func (ly *Activation) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx
 }
 
 type BatchNorm struct {
-	Name string
+	Name         string
 	Mom, Epsilon float32
 }
 

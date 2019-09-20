@@ -29,8 +29,7 @@ func Test_mnistConv0(t *testing.T) {
 		Verbose:   ng.Printing,
 		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
-		AccFunc:   ng.Classification,
-		Accuracy:  0.98,
+		Metric:    &ng.Classification{Accuracy: 0.98},
 		Seed:      42,
 	}
 
@@ -46,6 +45,6 @@ func Test_mnistConv0(t *testing.T) {
 	assert.NilError(t, err)
 	_ = net.PrintSummary(false)
 
-	acc, err = ng.Measure(net, &mnist.Dataset{}, ng.Classification, ng.Printing)
-	assert.Assert(t, acc >= 0.98)
+	ok, err := ng.Measure(net, &mnist.Dataset{}, &ng.Classification{Accuracy: 0.98}, ng.Printing)
+	assert.Assert(t, ok)
 }

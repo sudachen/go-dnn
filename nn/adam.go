@@ -7,6 +7,8 @@ import (
 
 type Adam struct {
 	Lr, Beta1, Beta2, Epsilon float32
+
+	LrMap map[int]float32
 }
 
 type stAdam struct {
@@ -20,10 +22,10 @@ type implAdam struct {
 	States map[*mx.NDArray]stAdam
 }
 
-func (opt *Adam) Init() (Optimizer, error) {
+func (opt *Adam) Init(e int) (Optimizer, error) {
 	r := &implAdam{Adam: *opt, States: make(map[*mx.NDArray]stAdam)}
 	if r.Lr == 0 {
-		r.Lr = 0.01
+		r.Lr = locateLr(e, opt.LrMap, 0.001)
 	}
 	if r.Beta1 == 0 {
 		r.Beta1 = 0.9

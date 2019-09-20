@@ -22,7 +22,7 @@ type Convolution struct {
 func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var (
 		out, weight, bias *mx.Symbol
-		err error
+		err               error
 	)
 	ns := ly.Name
 	if ns == "" {
@@ -45,7 +45,7 @@ func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*m
 	}
 	if ly.Activation != nil {
 		out = ly.Activation(out)
-		out.SetName(ns+"$A")
+		out.SetName(ns + "$A")
 	}
 	return out, g, nil
 }
@@ -56,10 +56,27 @@ type MaxPool struct {
 	Padding mx.Dimension
 	Ceil    bool
 	Name    string
+
+	BatchNorm bool
 }
 
 func (ly *MaxPool) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
-	return mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, true), g, nil
+	var (
+		out *mx.Symbol
+		err error
+	)
+	ns := ly.Name
+	if ns == "" {
+		ns = fmt.Sprintf("MaxPool%02d", mx.NextSymbolId())
+	}
+	out = mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, true)
+	out.SetName(ns)
+	if ly.BatchNorm {
+		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
+			return nil, nil, err
+		}
+	}
+	return out, g, nil
 }
 
 type AvgPool struct {
@@ -67,8 +84,26 @@ type AvgPool struct {
 	Stride  mx.Dimension
 	Padding mx.Dimension
 	Ceil    bool
+	Name    string
+
+	BatchNorm bool
 }
 
 func (ly *AvgPool) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
-	return mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, false), g, nil
+	var (
+		out *mx.Symbol
+		err error
+	)
+	ns := ly.Name
+	if ns == "" {
+		ns = fmt.Sprintf("AvgPool%02d", mx.NextSymbolId())
+	}
+	out = mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, false)
+	out.SetName(ns)
+	if ly.BatchNorm {
+		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
+			return nil, nil, err
+		}
+	}
+	return out, g, nil
 }

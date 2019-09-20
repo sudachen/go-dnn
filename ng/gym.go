@@ -24,8 +24,7 @@ type Gym struct {
 	Dataset   Dataset
 	Verbose   Verbosity
 	Every     time.Duration
-	AccFunc   nn.AccFunc
-	Accuracy  float32
+	Metric    nn.Metric
 	State     State
 	Seed      int
 }
@@ -34,11 +33,10 @@ const StopTraining = -1
 
 type State interface {
 	Setup(*nn.Network, int) (int, error)
-	Preset(*nn.Network) error
+	Preset(*nn.Network) (nn.Optimizer, error)
 	LogBatchLoss(loss float32) error
 	NextEpoch(maxEpochs int) (int, error)
-	GetAccFunc() nn.AccFunc
-	FinishEpoch(accuracy float32, net *nn.Network) error
+	FinishEpoch(net *nn.Network, test Batchs) (float32, bool, error)
 }
 
 func verbose(s string, verbosity Verbosity) {

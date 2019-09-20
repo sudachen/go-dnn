@@ -1,23 +1,23 @@
 package ng
 
 import (
-	"fmt"
 	"github.com/sudachen/go-dnn/nn"
 )
 
-type nullState struct {
-	nn.AccFunc
-	epochs int
+type NullState struct {
+	Metric    nn.Metric
+	Epoch     int
+	Optimizer nn.OptimizerConf
 }
 
-func (s *nullState) NextEpoch(maxEpochs int) (int, error) {
-	if s.epochs < maxEpochs {
-		return s.epochs, nil
+func (s *NullState) NextEpoch(maxEpochs int) (int, error) {
+	if s.Epoch < maxEpochs || maxEpochs <= 0 {
+		return s.Epoch, nil
 	}
 	return StopTraining, nil
 }
 
-func (s *nullState) Setup(net *nn.Network, seed int) (int, error) {
+func (s *NullState) Setup(net *nn.Network, seed int) (int, error) {
 	if seed != 0 {
 		seed = 42
 	}
@@ -28,23 +28,24 @@ func (s *nullState) Setup(net *nn.Network, seed int) (int, error) {
 	return seed, nil
 }
 
-func (s *nullState) Preset(net *nn.Network) error {
+func (s *NullState) Preset(net *nn.Network) (nn.Optimizer, error) {
+	if s.Optimizer != nil {
+		return s.Optimizer.Init(s.Epoch)
+	}
+	return nil, nil
+}
+
+func (s *NullState) LogBatchLoss(loss float32) error {
 	return nil
 }
 
-func (s *nullState) LogBatchLoss(loss float32) error {
-	return nil
-}
-
-func (s *nullState) GetAccFunc() nn.AccFunc {
-	return s.AccFunc
-}
-
-func (s *nullState) FinishEpoch(accuracy float32, net *nn.Network) error {
-	s.epochs++
-	return nil
-}
-
-func (s *nullState) LoadLastParams(*nn.Network) error {
-	return fmt.Errorf("LoadLastParams is not nimplemented")
+func (s *NullState) FinishEpoch(net *nn.Network, test Batchs) (metric float32, satisfied bool, err error) {
+	if s.Metric != nil {
+		if satisfied, err = Measure(net, test, s.Metric, Silent); err != nil {
+			return
+		}
+		metric = s.Metric.Value()
+	}
+	s.Epoch++
+	return
 }

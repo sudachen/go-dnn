@@ -58,27 +58,25 @@ func (f *Network) Predict(data interface{}) ([][]float32, error) {
 	return r, nil
 }
 
-type AccFunc = func(data, label []float32) (bool, error)
+type Metric interface {
+	Reset()
+	Collect(data, label []float32)
+	Value() float32
+	Satisfy() bool
+}
 
-func (f *Network) Test(data, label []float32, accfunc AccFunc) (float32, error) {
-	var acc float32 = 0
+func (f *Network) Test(data, label []float32, metric Metric) (err error) {
 	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
-	if err := f.Predict1(data, out); err != nil {
-		return 0, err
+	if err = f.Predict1(data, out); err != nil {
+		return
 	}
 	count := f.Graph.Outputs[0].Len(0)
 	outw := len(out) / count
 	labelw := len(label) / count
 	for i := 0; i < count; i++ {
-		ok, err := accfunc(out[outw*i:outw*(i+1)], label[labelw*i:labelw*(i+1)])
-		if err != nil {
-			return 0, err
-		}
-		if ok {
-			acc += 1
-		}
+		metric.Collect(out[outw*i:outw*(i+1)], label[labelw*i:labelw*(i+1)])
 	}
-	return acc / float32(count), nil
+	return
 }
 
 func (f *Network) Train(data interface{}, label interface{}, opt Optimizer) error {
@@ -178,10 +176,16 @@ func (net *Network) GetParams() (Params, error) {
 		for i := 0; i < 4; i++ {
 			a[i+1] = float32(dm.Shape[i])
 		}
-		if err := d.Data.CopyValuesTo(a[5:]); err != nil {
+
+		// MXNET/DNNML performance workaround
+		z := mx.CPU.CopyAs(d.Data, mx.Float32)
+
+		if err := z.CopyValuesTo(a[5:]); err != nil {
 			return Params{}, err
 		}
+
 		p.P[n] = a
+		z.Release()
 	}
 	return p, nil
 }

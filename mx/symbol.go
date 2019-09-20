@@ -227,22 +227,30 @@ func SoftmaxCrossEntropy(a, b *Symbol, axis ...int) *Symbol {
 func formatAxis(axis ...int) string {
 	if len(axis) == 1 {
 		switch axis[0] {
-		case 0:  return "0"
-		case 1:  return "1"
-		case -1: return "-1"
-		default: return fmt.Sprintf("%d",axis[0])
+		case 0:
+			return "0"
+		case 1:
+			return "1"
+		case -1:
+			return "-1"
+		default:
+			return fmt.Sprintf("%d", axis[0])
 		}
 	} else {
-		s := make([]string,len(axis))
-		for i,a := range axis {
+		s := make([]string, len(axis))
+		for i, a := range axis {
 			switch a {
-			case 0:  s[i] = "0"
-			case 1:  s[i] = "1"
-			case -1: s[i] = "-1"
-			default: s[i] = fmt.Sprintf("%d",a)
+			case 0:
+				s[i] = "0"
+			case 1:
+				s[i] = "1"
+			case -1:
+				s[i] = "-1"
+			default:
+				s[i] = fmt.Sprintf("%d", a)
 			}
 		}
-		return "("+strings.Join(s,",")+")"
+		return "(" + strings.Join(s, ",") + ")"
 	}
 }
 
@@ -261,7 +269,7 @@ func SumXl(a *Symbol, axis ...int) *Symbol {
 	if len(axis) > 0 {
 		s.attr = map[capi.MxnetKey]string{
 			capi.KeyExclude: "1",
-			capi.KeyAxis: formatAxis(axis...),
+			capi.KeyAxis:    formatAxis(axis...),
 		}
 	}
 	return s
@@ -282,7 +290,7 @@ func MeanXl(a *Symbol, axis ...int) *Symbol {
 	if len(axis) > 0 {
 		s.attr = map[capi.MxnetKey]string{
 			capi.KeyExclude: "1",
-			capi.KeyAxis: formatAxis(axis...),
+			capi.KeyAxis:    formatAxis(axis...),
 		}
 	}
 	return s
@@ -300,7 +308,7 @@ func Stack1(a ...*Symbol) *Symbol {
 	s := &Symbol{op: capi.OpStack, args: a,
 		attr: map[capi.MxnetKey]string{
 			capi.KeyNumArgs: fmt.Sprintf("%d", len(a)),
-			capi.KeyAxis: "-1",
+			capi.KeyAxis:    "-1",
 		}}
 	return s
 }
@@ -312,10 +320,10 @@ func BatchNorm(a, gamma, beta, rmean, rvar *Symbol, mom, eps float32, axis ...in
 		s.attr[capi.KeyAxis] = formatAxis(axis...)
 	}
 	if mom != 0 {
-		s.attr[capi.KeyMomentum] = fmt.Sprintf("%v",mom)
+		s.attr[capi.KeyMomentum] = fmt.Sprintf("%v", mom)
 	}
 	if eps != 0 {
-		s.attr[capi.KeyEps] = fmt.Sprintf("%v",eps)
+		s.attr[capi.KeyEps] = fmt.Sprintf("%v", eps)
 	}
 	return s
 }
@@ -362,8 +370,8 @@ const (
 	ReLU ActivationType = iota
 	SoftReLU
 	SoftSign
-	Sigmoid
-	Tanh
+	ActivSigmoid
+	ActivTanh
 )
 
 func Activation(a *Symbol, actType ActivationType) *Symbol {
@@ -373,9 +381,9 @@ func Activation(a *Symbol, actType ActivationType) *Symbol {
 		s = "softrelu"
 	case SoftSign:
 		s = "softsign"
-	case Sigmoid:
+	case ActivSigmoid:
 		s = "sigmoid"
-	case Tanh:
+	case ActivTanh:
 		s = "tanh"
 	//case ReLU: s = "relu"
 	default:
@@ -438,6 +446,14 @@ func Flatten(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpFlatten, args: []*Symbol{a}}
 }
 
-func Sigma(a *Symbol) *Symbol {
-	return &Symbol{op: capi.OpSigma, args: []*Symbol{a}}
+func Sigmoid(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpSigmoid, args: []*Symbol{a}}
+}
+
+func Tanh(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpTanh, args: []*Symbol{a}}
+}
+
+func Sin(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpSin, args: []*Symbol{a}}
 }

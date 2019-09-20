@@ -239,8 +239,9 @@ func (a *NDArray) Values(dtype Dtype) (interface{}, error) {
 		defer q.Release()
 	}
 	vals := reflect.MakeSlice(reflect.SliceOf(typemap[dtype]), ln, ln)
-	if e := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(vals.Index(0).UnsafeAddr()), ln); e != 0 {
-		return nil, fmt.Errorf("failed to copy raw data")
+	if err := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(vals.Index(0).UnsafeAddr()), ln); err != nil {
+		//return fmt.Errorf("failed to copy raw data: %v",err)
+		panic(fmt.Sprintf("failed to copy raw data: %v", err))
 	}
 	return vals.Interface(), nil
 }
@@ -266,8 +267,9 @@ func (a *NDArray) CopyValuesTo(dst interface{}) error {
 		q = CPU.CopyAs(q, t)
 		defer q.Release()
 	}
-	if e := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), ln); e != 0 {
-		return fmt.Errorf("failed to copy raw data")
+	if err := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), ln); err != nil {
+		//return fmt.Errorf("failed to copy raw data: %v",err)
+		panic(fmt.Sprintf("failed to copy raw data: %v", err))
 	}
 	return nil
 }
