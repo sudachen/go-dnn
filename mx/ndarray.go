@@ -2,6 +2,7 @@ package mx
 
 import (
 	"fmt"
+	"github.com/sudachen/errors"
 	"github.com/sudachen/go-dnn/mx/capi"
 	"reflect"
 	"runtime"
@@ -37,7 +38,7 @@ func Array(tp Dtype, d Dimension) *NDArray {
 
 func Errayf(s string, a ...interface{}) *NDArray {
 	return &NDArray{
-		err: fmt.Errorf(s, a...),
+		err: errors.Errorf(s, a...),
 	}
 }
 
@@ -47,7 +48,7 @@ func (a *NDArray) erray(err error) *NDArray {
 }
 
 func (a *NDArray) errayf(s string, v ...interface{}) *NDArray {
-	a.err = fmt.Errorf(s, v...)
+	a.err = errors.Errorf(s, v...)
 	return a
 }
 
@@ -170,12 +171,12 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 			reflect.Int32, reflect.Uint32, reflect.Int64, reflect.Uint64,
 			reflect.Float32, reflect.Float64:
 			if s.Len() <= n {
-				return 0, fmt.Errorf("too many elements to copy")
+				return 0, errors.Errorf("too many elements to copy")
 			}
 			s.Index(n).Set(v0.Convert(dt))
 			n++
 		default:
-			return 0, fmt.Errorf("can't initialize with non numeric type %v", v0.Type())
+			return 0, errors.Errorf("can't initialize with non numeric type %v", v0.Type())
 		}
 	}
 	return n, nil
@@ -183,7 +184,7 @@ func copyTo(s reflect.Value, n int, v0 reflect.Value, dt reflect.Type) (int, err
 
 func (a *NDArray) SetValues(vals ...interface{}) error {
 	if a == nil || a.handle == nil {
-		return fmt.Errorf("can't initialize broken array")
+		return errors.Errorf("can't initialize broken array")
 	}
 
 	if a.dtype == Float16 {
@@ -193,14 +194,14 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 			return err
 		}
 		if err := capi.ImperativeInvokeInOut1(capi.OpCopyTo, q.handle, a.handle); err != nil {
-			return fmt.Errorf("failed copy temporal Float32 array to Float16 target")
+			return errors.Errorf("failed copy temporal Float32 array to Float16 target")
 		}
 		return nil
 	}
 
 	dt, ok := typemap[a.dtype]
 	if !ok {
-		return fmt.Errorf("initialization with dtype %v is unsupportd", a.dtype)
+		return errors.Errorf("initialization with dtype %v is unsupportd", a.dtype)
 	}
 
 	s := reflect.ValueOf(vals[0])
@@ -210,13 +211,13 @@ func (a *NDArray) SetValues(vals ...interface{}) error {
 		if n, err := copyTo(s, 0, reflect.ValueOf(vals), dt); err != nil {
 			return err
 		} else if n != a.dim.Total() {
-			return fmt.Errorf("not enough elements to set value")
+			return errors.Errorf("not enough elements to set value")
 		}
 	}
 
 	e := capi.SetNDArrayRawData(a.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), a.dim.Total())
 	if e != 0 {
-		return fmt.Errorf("failed to initialize array with raw data")
+		return errors.Errorf("failed to initialize array with raw data")
 	}
 	return nil
 }
@@ -230,7 +231,7 @@ func (a *NDArray) Raw() []byte {
 
 func (a *NDArray) Values(dtype Dtype) (interface{}, error) {
 	if dtype == Float16 {
-		return nil, fmt.Errorf("can't gate values in Float16 format")
+		return nil, errors.Errorf("can't gate values in Float16 format")
 	}
 	q := a
 	ln := q.dim.Total()
@@ -240,7 +241,7 @@ func (a *NDArray) Values(dtype Dtype) (interface{}, error) {
 	}
 	vals := reflect.MakeSlice(reflect.SliceOf(typemap[dtype]), ln, ln)
 	if err := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(vals.Index(0).UnsafeAddr()), ln); err != nil {
-		//return fmt.Errorf("failed to copy raw data: %v",err)
+		//return errors.Errorf("failed to copy raw data: %v",err)
 		panic(fmt.Sprintf("failed to copy raw data: %v", err))
 	}
 	return vals.Interface(), nil
@@ -260,7 +261,7 @@ func (a *NDArray) CopyValuesTo(dst interface{}) error {
 	s := reflect.ValueOf(dst)
 	t, ok := rtypemap[s.Index(0).Type()]
 	if !ok {
-		return fmt.Errorf("invalid destination type %s", s.Type())
+		return errors.Errorf("invalid destination type %s", s.Type())
 	}
 
 	if q.dtype != t {
@@ -268,8 +269,27 @@ func (a *NDArray) CopyValuesTo(dst interface{}) error {
 		defer q.Release()
 	}
 	if err := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), ln); err != nil {
-		//return fmt.Errorf("failed to copy raw data: %v",err)
-		panic(fmt.Sprintf("failed to copy raw data: %v", err))
+		return errors.Errorf("failed to copy raw data: %v", err)
+		//panic(fmt.Sprintf("failed to copy raw data: %v", err))
+	}
+	return nil
+}
+
+func (a *NDArray) ReCopyValuesTo(dst interface{}) error {
+	q := a
+	ln := q.dim.Total()
+	s := reflect.ValueOf(dst)
+	t, ok := rtypemap[s.Index(0).Type()]
+	if !ok {
+		return errors.Errorf("invalid destination type %s", s.Type())
+	}
+
+	q = CPU.CopyAs(q, t)
+	defer q.Release()
+
+	if err := capi.GetNDArrayRawData(q.handle, unsafe.Pointer(s.Index(0).UnsafeAddr()), ln); err != nil {
+		return errors.Errorf("failed to copy raw data: %v", err)
+		//panic(fmt.Sprintf("failed to copy raw data: %v", err))
 	}
 	return nil
 }

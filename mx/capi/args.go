@@ -9,8 +9,8 @@ import (
 	"unsafe"
 )
 
-const MaxArgsCount = 16
-const MaxCacheArgsCount = 16 * 2
+const MaxArgsCount = 128
+const MaxCacheArgsCount = 128 * 2
 
 var pcharCache = map[interface{}]int{}
 var pcharCacheVals [MaxCacheArgsCount]struct {

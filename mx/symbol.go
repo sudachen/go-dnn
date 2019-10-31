@@ -12,6 +12,10 @@ const (
 	OpScalar_ capi.MxnetOp = -4
 	OpNogVar_ capi.MxnetOp = -5
 	OpGroup_  capi.MxnetOp = -7
+	OpRef_    capi.MxnetOp = -8
+	OpOutput_ capi.MxnetOp = -9
+	OpBound_  capi.MxnetOp = -10
+	OpDepend_ capi.MxnetOp = -11
 )
 
 type Inite interface {
@@ -36,6 +40,8 @@ type Symbol struct {
 	args  []*Symbol
 	init  Inite
 	attr  map[capi.MxnetKey]string
+	dim   Dimension
+	output bool
 }
 
 type _hidden_input_ struct{}
@@ -49,6 +55,23 @@ func Nograd(_hidden_nograd_) {}
 func (s *Symbol) SetName(name string) *Symbol {
 	s.name = name
 	return s
+}
+
+func (s *Symbol) SetOutput(on bool) *Symbol {
+	s.output = on
+	return s
+}
+
+func Output(a *Symbol, name string) *Symbol {
+	return &Symbol{op:OpOutput_, args:[]*Symbol{a}, name: name}
+}
+
+func Bound(a ...*Symbol) *Symbol {
+	return &Symbol{op:OpBound_, args:a}
+}
+
+func Depend(a ...*Symbol) *Symbol {
+	return &Symbol{op:OpDepend_, args:a}
 }
 
 func SymbolCast(i interface{}) (*Symbol, error) {
@@ -98,6 +121,25 @@ func GenericOp2(op, opScalar, opScalarR capi.MxnetOp, lv interface{}, rv interfa
 	return &Symbol{op: op, args: []*Symbol{l, r}}
 }
 
+func GenericOp1(op, opScalar capi.MxnetOp, l *Symbol, rv interface{}) *Symbol {
+	var (
+		r   *Symbol
+		err error
+	)
+	if r, err = SymbolCast(rv); err != nil {
+		panic(err.Error())
+	}
+
+	if r != nil && r.op == OpScalar_ {
+		return &Symbol{
+			op:   opScalar,
+			args: []*Symbol{l},
+			attr: map[capi.MxnetKey]string{capi.KeyScalar: r.value}}
+	}
+
+	return &Symbol{op: op, args: []*Symbol{l, r}}
+}
+
 func Add(lv interface{}, rv interface{}) *Symbol {
 	return GenericOp2(capi.OpAdd, capi.OpAddScalar, capi.OpAddScalar, lv, rv)
 }
@@ -116,6 +158,70 @@ func Div(lv interface{}, rv interface{}) *Symbol {
 
 func Dot(lv interface{}, rv interface{}) *Symbol {
 	return GenericOp2(capi.OpDot, capi.OpEmpty, capi.OpEmpty, lv, rv)
+}
+
+func LE(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpLe, capi.OpLeScalar, a, rv)
+}
+
+func GE(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpGe, capi.OpGeScalar, a, rv)
+}
+
+func EQ(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpEq, capi.OpEqScalar, a, rv)
+}
+
+func NE(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpNe, capi.OpNeScalar, a, rv)
+}
+
+func Lesser(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpLesser, capi.OpLesserScalar, a, rv)
+}
+
+func Greater(a *Symbol, rv interface{}) *Symbol {
+	return GenericOp1(capi.OpGreater, capi.OpGreaterScalar, a, rv)
+}
+
+func And(a *Symbol, b *Symbol) *Symbol {
+	return &Symbol{op:capi.OpAnd, args: []*Symbol{a,b}}
+}
+
+func Or(a *Symbol, b *Symbol) *Symbol {
+	return &Symbol{op:capi.OpOr, args: []*Symbol{a,b}}
+}
+
+func Xor(a *Symbol, b *Symbol) *Symbol {
+	return &Symbol{op:capi.OpXor, args: []*Symbol{a,b}}
+}
+
+func BcastAdd(a, b *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpBroadcastAdd,
+		args: []*Symbol{a, b},
+	}
+}
+
+func BcastMul(a, b *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpBroadcastMul,
+		args: []*Symbol{a, b},
+	}
+}
+
+func BcastDiv(a, b *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpBroadcastDiv,
+		args: []*Symbol{a, b},
+	}
+}
+
+func BcastSub(a, b *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpBroadcastSub,
+		args: []*Symbol{a, b},
+	}
 }
 
 func Log(a *Symbol) *Symbol {
@@ -143,11 +249,17 @@ func Var(name string, opt ...interface{}) *Symbol {
 			s.init = init
 		} else if _, ok := t.(func(_hidden_nograd_)); ok {
 			s.op = OpNogVar_
+		} else if dim, ok := t.(Dimension); ok {
+			s.dim = dim
 		} else {
 			panic(fmt.Sprintf("unexpected parameter %v", t))
 		}
 	}
 	return s
+}
+
+func Ref(name string, a ...*Symbol) *Symbol {
+	return &Symbol{op: OpRef_, name: name, args: a}
 }
 
 func Group(a ...*Symbol) *Symbol {
@@ -285,6 +397,17 @@ func Mean(a *Symbol, axis ...int) *Symbol {
 	return s
 }
 
+func MeanKd(a *Symbol, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpMean, args: []*Symbol{a},
+		attr: map[capi.MxnetKey]string{
+			capi.KeyKeepdims: "1",
+		}}
+	if len(axis) > 0 {
+		s.attr[capi.KeyAxis] = formatAxis(axis...)
+	}
+	return s
+}
+
 func MeanXl(a *Symbol, axis ...int) *Symbol {
 	s := &Symbol{op: capi.OpMean, args: []*Symbol{a}}
 	if len(axis) > 0 {
@@ -313,7 +436,7 @@ func Stack1(a ...*Symbol) *Symbol {
 	return s
 }
 
-func BatchNorm(a, gamma, beta, rmean, rvar *Symbol, mom, eps float32, axis ...int) *Symbol {
+func BatchNorm(a, gamma, beta, rmean, rvar *Symbol, mom, eps float32, useGlobalStats bool, axis ...int) *Symbol {
 	s := &Symbol{op: capi.OpBatchNorm, args: []*Symbol{a, gamma, beta, rmean, rvar}}
 	s.attr = map[capi.MxnetKey]string{}
 	if len(axis) > 0 {
@@ -325,6 +448,9 @@ func BatchNorm(a, gamma, beta, rmean, rvar *Symbol, mom, eps float32, axis ...in
 	if eps != 0 {
 		s.attr[capi.KeyEps] = fmt.Sprintf("%v", eps)
 	}
+	if useGlobalStats {
+		s.attr[capi.KeyGlobalStats] = "1"
+	}
 	return s
 }
 
@@ -333,7 +459,7 @@ func Concat(a ...*Symbol) *Symbol {
 		attr: map[capi.MxnetKey]string{capi.KeyNumArgs: fmt.Sprintf("%d", len(a))}}
 }
 
-func Conv(a, weight, bias *Symbol, channels int, kernel, stride, padding Dimension, groups bool) *Symbol {
+func Conv(a, weight, bias *Symbol, channels int, kernel, stride, padding Dimension, groups bool, layout string) *Symbol {
 	args := []*Symbol{a, weight, bias}
 	attr := map[capi.MxnetKey]string{capi.KeyNumFilter: fmt.Sprintf("%v", channels)}
 	if bias == nil {
@@ -361,15 +487,19 @@ func Conv(a, weight, bias *Symbol, channels int, kernel, stride, padding Dimensi
 		attr[capi.KeyPad] = fmt.Sprintf("%v", padding.Shape[0])
 	}
 
+	if layout != "" {
+		attr[capi.KeyLayout] = layout
+	}
+
 	return &Symbol{op: capi.OpConvolution, args: args, attr: attr}
 }
 
 type ActivationType int
 
 const (
-	ReLU ActivationType = iota
-	SoftReLU
-	SoftSign
+	ActivReLU ActivationType = iota
+	ActivSoftReLU
+	ActivSoftSign
 	ActivSigmoid
 	ActivTanh
 )
@@ -377,9 +507,9 @@ const (
 func Activation(a *Symbol, actType ActivationType) *Symbol {
 	var s string
 	switch actType {
-	case SoftReLU:
+	case ActivSoftReLU:
 		s = "softrelu"
-	case SoftSign:
+	case ActivSoftSign:
 		s = "softsign"
 	case ActivSigmoid:
 		s = "sigmoid"
@@ -450,10 +580,108 @@ func Sigmoid(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpSigmoid, args: []*Symbol{a}}
 }
 
+func HardSigmoid(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpHardSigmoid, args: []*Symbol{a}}
+}
+
 func Tanh(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpTanh, args: []*Symbol{a}}
 }
 
 func Sin(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpSin, args: []*Symbol{a}}
+}
+
+func ReLU(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpReLU, args: []*Symbol{a}}
+}
+
+func Transpose(a *Symbol, axis ...int) *Symbol {
+	s := make([]string, len(axis))
+	for i, a := range axis {
+		switch a {
+		case 0:
+			s[i] = "0"
+		case 1:
+			s[i] = "1"
+		case -1:
+			s[i] = "-1"
+		default:
+			s[i] = fmt.Sprintf("%d", a)
+		}
+	}
+	ax := "(" + strings.Join(s, ",") + ")"
+	return &Symbol{
+		op:   capi.OpTranspose,
+		args: []*Symbol{a},
+		attr: map[capi.MxnetKey]string{capi.KeyAxes: ax}}
+}
+
+func Slice(a *Symbol, axis, begin, end int) *Symbol {
+	s := "("
+	for i := 0; i < axis; i++ {
+		s += "None,"
+	}
+	return &Symbol{
+		op:   capi.OpSlice,
+		args: []*Symbol{a},
+		attr: map[capi.MxnetKey]string{
+			capi.KeyBegin: fmt.Sprintf(s+"%d)", begin),
+			capi.KeyEnd:   fmt.Sprintf(s+"%d)", end),
+		}}
+}
+
+func Channel(a *Symbol, ch int) *Symbol {
+	return &Symbol{
+		op:   capi.OpSlice,
+		args: []*Symbol{a},
+		attr: map[capi.MxnetKey]string{
+			capi.KeyBegin: fmt.Sprintf("(None,%d)", ch),
+			capi.KeyEnd:   fmt.Sprintf("(None,%d)", ch+1),
+		}}
+}
+
+func Ones(dim ...int) *Symbol {
+	return &Symbol{
+		op:  capi.OpOnes,
+		dim: Dim(dim...),
+	}
+}
+
+func OnesLike(a *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpOnesLike,
+		args: []*Symbol{a},
+	}
+}
+
+func Zeros(dim ...int) *Symbol {
+	return &Symbol{
+		op:  capi.OpZeros,
+		dim: Dim(dim...),
+	}
+}
+
+func ZerosLike(a *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpZerosLike,
+		args: []*Symbol{a},
+	}
+}
+
+func ReshapeLike(a, b *Symbol) *Symbol {
+	return &Symbol{
+		op:   capi.OpReshapeLike,
+		args: []*Symbol{a, b},
+	}
+}
+
+func Dropout(a *Symbol, rate float32) *Symbol {
+	return &Symbol{
+		op:   capi.OpDropout,
+		args: []*Symbol{a},
+		attr: map[capi.MxnetKey]string{
+			capi.KeyP: fmt.Sprintf("%v", rate),
+		},
+	}
 }

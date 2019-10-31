@@ -47,20 +47,20 @@ type GraphJs struct {
 }
 
 type SummryArg struct {
-	No   int
-	Name string
+	No   int	 `yaml:"no""`
+	Name string  `yaml:"name"`
 }
 
 type SummaryRow struct {
-	No        int
-	Name      string
-	Operation string
-	Params    int
-	Dim       Dimension
-	Args      []SummryArg
+	No        int        	`yaml:"no"`
+	Name      string	 	`yaml:"name"`
+	Operation string	 	`yaml:"op"`
+	Params    int			`yaml:"params"`
+	Dim       Dimension		`yaml:"dimension"`
+	Args      []SummryArg	`yaml:"args"`
 }
 
-type Summary []*SummaryRow
+type Summary []SummaryRow
 
 func (g *Graph) Summary(withLoss bool) (Summary, error) {
 	var (
@@ -94,7 +94,7 @@ func (g *Graph) Summary(withLoss bool) (Summary, error) {
 						} else if ly2.Name == "_label" {
 							//n.Params += g.Label.Dim().Total()
 						} else if p, ok := g.Params[ly2.Name]; ok {
-							n.Params += p.Data.Dim().Total()
+							n.Params += p.Dim().Total()
 						}
 					} else {
 						n.Args = append(n.Args, SummryArg{ns[ly2.Name].No, ly2.Name})
@@ -127,21 +127,14 @@ func (g *Graph) Summary(withLoss bool) (Summary, error) {
 
 	r := make(Summary, len(ns))
 	for _, v := range ns {
-		r[v.No] = v
+		r[v.No] = *v
 	}
 
 	return r, nil
 }
 
-func (g *Graph) SummaryOut(withLoss bool, out func(string)) error {
-	var (
-		nameLen, opLen, parLen, dimLen int = 9, 9, 9, 9
-		err                            error
-		sry                            Summary
-	)
-	if sry, err = g.Summary(withLoss); err != nil {
-		return err
-	}
+func (sry Summary) Print(out func(string)) {
+	var nameLen, opLen, parLen, dimLen int = 9, 9, 9, 9
 	for _, v := range sry {
 		if nameLen < len(v.Name) {
 			nameLen = len(v.Name)
@@ -170,6 +163,14 @@ func (g *Graph) SummaryOut(withLoss bool, out func(string)) error {
 	}
 	out(strings.Repeat("-", len(hdr)))
 	out(fmt.Sprintf("Total params: %d", npars))
+}
+
+func (g *Graph) SummaryOut(withLoss bool, out func(string)) (err error) {
+	var sry Summary
+	if sry, err = g.Summary(withLoss); err != nil {
+		return err
+	}
+	sry.Print(out)
 	return nil
 }
 

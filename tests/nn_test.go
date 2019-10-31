@@ -28,9 +28,9 @@ func Test_nn1_Forward(t *testing.T) {
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
-	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
-	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
-	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 3)
+	assert.Assert(t, net.Graph.Output.Depth() == 2)
+	assert.Assert(t, net.Graph.Output.Len(0) == 1)
+	assert.Assert(t, net.Graph.Output.Len(1) == 3)
 
 	mx.CPU.RandomSeed(42)
 
@@ -53,7 +53,7 @@ func Test_nn1_Forward(t *testing.T) {
 func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 
 	f := func(x *mx.Symbol) *mx.Symbol {
-		return mx.Pow(mx.Add(x, mx.Var("_offset", ini)), 2)
+		return mx.Pow(mx.Add(x, mx.Var("offset", ini)), 2)
 	}
 
 	net, err := nn.Bind(mx.CPU, &nn.Lambda{f}, mx.Dim(1, 2), loss)
@@ -61,12 +61,14 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
+	net.PrintSummary(true)
+
 	input := []float32{1, 1}
 	label := []float32{0, 0}
 
-	assert.Assert(t, net.Graph.Outputs[0].Depth() == 2)
-	assert.Assert(t, net.Graph.Outputs[0].Len(0) == 1)
-	assert.Assert(t, net.Graph.Outputs[0].Len(1) == 2)
+	assert.Assert(t, net.Graph.Output.Depth() == 2)
+	assert.Assert(t, net.Graph.Output.Len(0) == 1)
+	assert.Assert(t, net.Graph.Output.Len(1) == 2)
 
 	opti, _ := opt.Init(0)
 	mx.CPU.RandomSeed(42)
@@ -75,18 +77,18 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 		assert.NilError(t, err)
 		err := net.Train(input, label, opti)
 		assert.NilError(t, err)
-		v := net.Graph.Params["_offset"].Data.ValuesF32()
+		v := net.Graph.Params["offset"].ValuesF32()
 		if v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1 {
 			t.Logf("%d %v %v %v %v", n,
 				net.Graph.Loss.ValuesF32(),
-				net.Graph.Outputs[0].ValuesF32(),
-				net.Graph.Params["_offset"].Data.ValuesF32(),
-				net.Graph.Params["_offset"].Grad.ValuesF32())
+				net.Graph.Output.ValuesF32(),
+				net.Graph.Params["offset"].ValuesF32(),
+				net.Graph.Grads["offset"].ValuesF32())
 			break
 		}
 	}
 
-	v := net.Graph.Params["_offset"].Data.ValuesF32()
+	v := net.Graph.Params["offset"].ValuesF32()
 	assert.Assert(t, v[0]+input[0] < 0.1 && v[1]+input[1] < 0.1)
 }
 

@@ -35,3 +35,11 @@ func Test_fu_Floor(t *testing.T) {
 	assert.Assert(t, fuCompare(fu.Floor1(1.333666, 3), 1.333))
 	assert.Assert(t, fuCompare(fu.Floor([]float32{1.333666}, 3), []float32{1.333}))
 }
+
+func Test_fu_Reverse(t *testing.T) {
+	a := []int{1,2,3,4,5,6,7,8,9}
+	b := []int{9,8,7,6,5,4,3,2,1}
+	assert.Assert(t, fuCompare(fu.ReversedCopy(a),b))
+	assert.Assert(t, fuCompare(fu.ReversedCopy(b),a))
+	assert.Assert(t, fuCompare(fu.ReversedCopy(fu.ReversedCopy(a)),a))
+}

@@ -12,6 +12,9 @@ const (
 	KeyData
 	KeyExclude
 	KeyAxis
+	KeyAxes
+	KeyBegin
+	KeyEnd
 	KeyMode
 	KeyNormalization
 	KeyLr
@@ -37,6 +40,10 @@ const (
 	KeyNumHidden
 	KeyMultiOutput
 	KeyNumArgs
+	KeyLayout
+	KeyShape
+	KeyGlobalStats
+	KeyP
 	KeyNoKey
 )
 
@@ -49,6 +56,9 @@ var keymap = map[MxnetKey]string{
 	KeyData:          "data",
 	KeyExclude:       "exclude",
 	KeyAxis:          "axis",
+	KeyAxes:          "axes",
+	KeyBegin:         "begin",
+	KeyEnd:           "end",
 	KeyMode:          "mode",
 	KeyLr:            "lr",
 	KeyMomentum:      "momentum",
@@ -74,6 +84,10 @@ var keymap = map[MxnetKey]string{
 	KeyMultiOutput:   "multi_output",
 	KeyNumHidden:     "num_hidden",
 	KeyNumArgs:       "num_args",
+	KeyLayout:        "layout",
+	KeyGlobalStats:   "use_global_stats",
+	KeyShape:         "shape",
+	KeyP:             "p",
 }
 
 func (k MxnetKey) Value() string {
@@ -109,6 +123,9 @@ const (
 	OpBlockGrad
 	OpMakeLoss
 	OpZeros
+	OpZerosLike
+	OpOnes
+	OpOnesLike
 	OpPowerScalar
 	OpPowerScalarR
 	OpSgdUpdate
@@ -133,9 +150,34 @@ const (
 	OpCosh
 	OpNot
 	OpSigmoid
+	OpHardSigmoid
 	OpTanh
 	OpSin
+	OpReLU
 	OpBatchNorm
+	OpBroadcastMul
+	OpBroadcastDiv
+	OpBroadcastSub
+	OpBroadcastAdd
+	OpTranspose
+	OpSlice
+	OpLeScalar
+	OpGeScalar
+	OpNeScalar
+	OpEqScalar
+	OpLesserScalar
+	OpGreaterScalar
+	OpLe
+	OpGe
+	OpNe
+	OpEq
+	OpLesser
+	OpGreater
+	OpReshapeLike
+	OpAnd
+	OpOr
+	OpXor
+	OpDropout
 	OpNoOp
 )
 
@@ -159,6 +201,9 @@ var opmap = map[MxnetOp]string{
 	OpBlockGrad:      "BlockGrad",
 	OpMakeLoss:       "make_loss",
 	OpZeros:          "_zeros",
+	OpZerosLike:      "zeros_like",
+	OpOnes:           "_ones",
+	OpOnesLike:       "ones_like",
 	OpPowerScalar:    "_power_scalar",
 	OpPowerScalarR:   "_rpower_scalar",
 	OpSgdUpdate:      "sgd_update",
@@ -180,12 +225,37 @@ var opmap = map[MxnetOp]string{
 	OpFullyConnected: "FullyConnected",
 	OpFlatten:        "Flatten",
 	OpNot:            "logical_not",
+	OpAnd:            "_logical_and",
+	OpOr:             "_logical_or",
+	OpXor:            "_logical_xor",
 	OpLog:            "log",
 	OpCosh:           "cosh",
 	OpSin:            "sin",
 	OpTanh:           "tanh",
 	OpSigmoid:        "sigmoid",
+	OpHardSigmoid:    "hard_sigmoid",
+	OpReLU:           "relu",
+	OpBroadcastSub:   "broadcast_sub",
+	OpBroadcastAdd:   "broadcast_add",
+	OpBroadcastMul:   "broadcast_mul",
+	OpBroadcastDiv:   "broadcast_div",
+	OpTranspose:      "transpose",
+	OpSlice:          "slice",
+	OpLe:             "_lesser_equal",
+	OpGe:             "_greater_equal",
+	OpNe:             "_not_equal",
+	OpEq:             "_equal",
+	OpLesser:         "_lesser",
+	OpGreater:        "_greater",
+	OpLeScalar:       "_lesser_equal_scalar",
+	OpGeScalar:       "_greater_equal_scalar",
+	OpNeScalar:       "_not_equal_scalar",
+	OpEqScalar:       "_equal_scalar",
+	OpLesserScalar:   "_lesser_scalar",
+	OpGreaterScalar:  "_greater_scalar",
+	OpReshapeLike:    "reshape_like",
 	OpBatchNorm:      "BatchNorm",
+	OpDropout:        "Dropout",
 }
 
 func (o MxnetOp) Value() string {

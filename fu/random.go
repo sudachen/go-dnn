@@ -13,3 +13,12 @@ func RandomIndex(ln, seed int) []int {
 	return r*/
 	return rand.New(rand.NewSource(int64(seed))).Perm(ln)
 }
+
+func Uniform(ln, seed int, low, high float32) (a []float32) {
+	a = make([]float32, ln)
+	r := rand.New(rand.NewSource(int64(seed)))
+	for i := range a {
+		a[i] = r.Float32()*(low-high) + low
+	}
+	return
+}

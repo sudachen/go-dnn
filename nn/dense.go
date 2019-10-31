@@ -20,6 +20,8 @@ type FullyConnected struct {
 	NoFlatten  bool
 	BatchNorm  bool
 	Name       string
+	Output     bool
+	Dropout    float32
 }
 
 func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
@@ -50,6 +52,22 @@ func (ly *FullyConnected) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, [
 		out = ly.Activation(out)
 		out.SetName(ns + "$A")
 	}
-	out = out
+	if ly.Dropout > 0.01 {
+		out = mx.Dropout(out,ly.Dropout)
+		out.SetName(ns + "$D")
+	}
+	out.SetOutput(ly.Output)
+	return out, g, nil
+}
+
+type Dropout struct {
+	Rate float32
+}
+
+func (ly *Dropout) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
+	out := in
+	if ly.Rate > 0.01 {
+		out = mx.Dropout(out,ly.Rate)
+	}
 	return out, g, nil
 }

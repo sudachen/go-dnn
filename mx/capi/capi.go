@@ -47,6 +47,7 @@ import "C"
 import (
 	"fmt"
 	"github.com/google/logger"
+	"github.com/sudachen/errors"
 	"github.com/sudachen/go-dnn/fu"
 	"unsafe"
 )
@@ -144,7 +145,7 @@ func init() {
 
 func ImperativeInvokeInplace1(op MxnetOp, h NDArrayHandle, a ...interface{}) error {
 	if h == nil {
-		return fmt.Errorf("uninitialized or broken array")
+		return errors.Errorf("uninitialized or broken array")
 	}
 
 	var keys [MaxArgsCount]*C.char
@@ -153,20 +154,20 @@ func ImperativeInvokeInplace1(op MxnetOp, h NDArrayHandle, a ...interface{}) err
 
 	if ent := mxentry[op]; ent != nil {
 		if e := C.imperative_invoke1_inplace(ent, C.NDArrayHandle(h), ano, &keys[0], &vals[0]); e != 0 {
-			return fmt.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
+			return errors.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
 		}
 	} else {
-		return fmt.Errorf("unresolved API entry %v", op.Value())
+		return errors.Errorf("unresolved API entry %v", op.Value())
 	}
 	return nil
 }
 
 func ImperativeInvokeInOut1(op MxnetOp, h NDArrayHandle, o NDArrayHandle, a ...interface{}) error {
 	if h == nil {
-		return fmt.Errorf("uninitialized or broken input array")
+		return errors.Errorf("uninitialized or broken input array")
 	}
 	if o == nil {
-		return fmt.Errorf("uninitialized or broken output array")
+		return errors.Errorf("uninitialized or broken output array")
 	}
 
 	var keys [MaxArgsCount]*C.char
@@ -174,10 +175,10 @@ func ImperativeInvokeInOut1(op MxnetOp, h NDArrayHandle, o NDArrayHandle, a ...i
 	ano := C.int(Fillargs(keys[:], vals[:], a))
 	if ent := mxentry[op]; ent != nil {
 		if e := C.imperative_invoke1_inout(ent, C.NDArrayHandle(h), C.NDArrayHandle(o), ano, &keys[0], &vals[0]); e != 0 {
-			return fmt.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
+			return errors.Errorf("maxnet %v error: %v", op.Value(), mxLastError())
 		}
 	} else {
-		return fmt.Errorf("unresolved API entry %v", op.Value())
+		return errors.Errorf("unresolved API entry %v", op.Value())
 	}
 	return nil
 }
@@ -186,7 +187,7 @@ func NewNDArrayHandle(devType int, devNo int, dtype int, shape [4]int, slen int)
 	var a C.NDArrayHandle
 	s := [4]C.uint{C.uint(shape[0]), C.uint(shape[1]), C.uint(shape[2]), C.uint(shape[3])}
 	if e := C.MXNDArrayCreateEx(&s[0], C.uint(slen), C.int(devType), C.int(devNo), 0, C.int(dtype), &a); e != 0 {
-		return nil, fmt.Errorf("failed to create ndarry: %v", mxLastError())
+		return nil, errors.Errorf("failed to create ndarry: %v", mxLastError())
 	}
 	return NDArrayHandle(a), nil
 }
@@ -194,7 +195,7 @@ func NewNDArrayHandle(devType int, devNo int, dtype int, shape [4]int, slen int)
 func GetNDArrayRawData(handle NDArrayHandle, p unsafe.Pointer, len int) error {
 	if handle != nil {
 		if e := C.MXNDArraySyncCopyToCPU(handle, p, C.ulong(len)); e != 0 {
-			return fmt.Errorf("failed to get raw data: %v", mxLastError())
+			return errors.Errorf("failed to get raw data: %v", mxLastError())
 		}
 	}
 	return nil
@@ -222,7 +223,7 @@ func NewSymbol(op MxnetOp, attr map[MxnetKey]string, a ...interface{}) (SymbolHa
 	var vals [MaxArgsCount]*C.char
 
 	if len(a)+len(attr) >= MaxArgsCount {
-		return nil, fmt.Errorf("number of keys and vals must be less than %v", MaxArgsCount)
+		return nil, errors.Errorf("number of keys and vals must be less than %v", MaxArgsCount)
 	}
 
 	i := Fillargs(keys[:], vals[:], a)
@@ -238,10 +239,10 @@ func NewSymbol(op MxnetOp, attr map[MxnetKey]string, a ...interface{}) (SymbolHa
 	var h SymbolHandle
 	if ent := mxentry[op]; ent != nil {
 		if e := C.MXSymbolCreateAtomicSymbol(ent, C.uint(ano), &keys[0], &vals[0], &h); e != 0 {
-			return nil, fmt.Errorf("failed to create mxnet symbol %v: %v", op.Value(), mxLastError())
+			return nil, errors.Errorf("failed to create mxnet symbol %v: %v", op.Value(), mxLastError())
 		}
 	} else {
-		return nil, fmt.Errorf("unresolved API entry %v", op.Value())
+		return nil, errors.Errorf("unresolved API entry %v", op.Value())
 	}
 
 	return h, nil
@@ -250,14 +251,20 @@ func NewSymbol(op MxnetOp, attr map[MxnetKey]string, a ...interface{}) (SymbolHa
 func ComposeSymbol(handle SymbolHandle, name string, a ...SymbolHandle) error {
 	str := C.CString(name)
 	defer C.free(unsafe.Pointer(str))
-	if e := C.MXSymbolCompose(handle, str, C.uint(len(a)), nil, &a[0]); e != 0 {
-		return fmt.Errorf("failed to compose mxnet symbol %v: %v", name, mxLastError())
+	if len(a) > 0 {
+		if e := C.MXSymbolCompose(handle, str, C.uint(len(a)), nil, &a[0]); e != 0 {
+			return errors.Errorf("failed to compose mxnet symbol %v: %v", name, mxLastError())
+		}
+	} else {
+		if e := C.MXSymbolCompose(handle, str, C.uint(0), nil, nil); e != 0 {
+			return errors.Errorf("failed to compose mxnet symbol %v: %v", name, mxLastError())
+		}
 	}
 	return nil
 }
 
 const ArgumentsNames = 0
-const OutoutNames = 1
+const OutputNames = 1
 const AuxNames = 2
 
 func ListNames(handle SymbolHandle, kind int) ([]string, error) {
@@ -275,7 +282,7 @@ func ListNames(handle SymbolHandle, kind int) ([]string, error) {
 			handle,
 			&out_nn,
 			&out_ns)
-	case OutoutNames:
+	case OutputNames:
 		e = C.MXSymbolListOutputs(
 			handle,
 			&out_nn,
@@ -288,7 +295,7 @@ func ListNames(handle SymbolHandle, kind int) ([]string, error) {
 	}
 
 	if e != 0 {
-		return nil, fmt.Errorf("failed to request output names from mxnet: %v", mxLastError())
+		return nil, errors.Errorf("failed to request output names from mxnet: %v", mxLastError())
 	}
 
 	name_at := func(i int) string {
@@ -312,7 +319,7 @@ const WithoutOutput = 8
 func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[string][]int, error) {
 
 	if len(with) > MaxArgsCount {
-		return nil, fmt.Errorf("to many shapes in args")
+		return nil, errors.Errorf("to many shapes in args")
 	}
 
 	var (
@@ -342,7 +349,8 @@ func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[
 		}
 	}()
 
-	e := C.MXSymbolInferShape(handle,
+	e := C.MXSymbolInferShape(
+		handle,
 		C.uint(len(with)),
 		&keys[0],
 		&si[0],
@@ -352,7 +360,7 @@ func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[
 		&aux_ss, &aux_sn, &aux_sd,
 		&complete)
 	if e != 0 {
-		return nil, fmt.Errorf("failed to request shapes from mxnet: %v", mxLastError())
+		return nil, errors.Errorf("failed to request shapes from mxnet: %v", mxLastError())
 	}
 
 	shape_at := func(i int, d *C.uint, s **C.uint) []int {
@@ -406,7 +414,7 @@ func InferShapes(handle SymbolHandle, with map[string][]int, selector int) (map[
 	}
 
 	if (selector & WithoutOutput) == 0 {
-		r["_output"] = shape_at(0, out_sn, out_sd)
+		r["_0"] = shape_at(0, out_sn, out_sd)
 	}
 
 	return r, nil
@@ -416,7 +424,7 @@ func GroupSymbols(s []SymbolHandle) (SymbolHandle, error) {
 	var r SymbolHandle
 	e := C.MXSymbolCreateGroup(C.uint(len(s)), &s[0], &r)
 	if e != 0 {
-		return nil, fmt.Errorf("failed to group mxnet symbols: %v", mxLastError())
+		return nil, errors.Errorf("failed to group mxnet symbols: %v", mxLastError())
 	}
 	return r, nil
 }
@@ -424,7 +432,7 @@ func GroupSymbols(s []SymbolHandle) (SymbolHandle, error) {
 func GetInternals(s SymbolHandle) (SymbolHandle, error) {
 	var o SymbolHandle
 	if e := C.MXSymbolGetInternals(s, &o); e != 0 {
-		return nil, fmt.Errorf("failed to get mxnet symbol internals: %v", mxLastError())
+		return nil, errors.Errorf("failed to get mxnet symbol internals: %v", mxLastError())
 	}
 	return o, nil
 }
@@ -457,7 +465,7 @@ func Bind(symbol SymbolHandle, devType, devNo int, args []NDArrayHandle, grads [
 		&r)
 
 	if e != 0 {
-		return nil, fmt.Errorf("failed to bind mxnet symbols: %v", mxLastError())
+		return nil, errors.Errorf("failed to bind mxnet symbols: %v", mxLastError())
 	}
 
 	return r, nil
@@ -476,11 +484,11 @@ func FillInfo(nfo *NDArrayInfo) error {
 		ds *C.uint
 	)
 	if e := C.MXNDArrayGetDType(nfo.Handle, &dt); e != 0 {
-		return fmt.Errorf("failed to get dtype of mxnet ndarray: %v", mxLastError())
+		return errors.Errorf("failed to get dtype of mxnet ndarray: %v", mxLastError())
 	}
 	nfo.Type = int(dt)
 	if e := C.MXNDArrayGetShape(nfo.Handle, &dn, &ds); e != 0 {
-		return fmt.Errorf("failed to get shape of mxnet ndarray: %v", mxLastError())
+		return errors.Errorf("failed to get shape of mxnet ndarray: %v", mxLastError())
 	}
 	nfo.Dim = make([]int, int(dn))
 	for i := range nfo.Dim {
@@ -496,7 +504,7 @@ func GetOutputs(exec ExecutorHandle) ([]NDArrayInfo, error) {
 		e C.int
 	)
 	if e = C.MXExecutorOutputs(exec, &n, &a); e != 0 {
-		return nil, fmt.Errorf("failed get mxnet outputs: %v", mxLastError())
+		return nil, errors.Errorf("failed get mxnet outputs: %v", mxLastError())
 	}
 	r := make([]NDArrayInfo, int(n))
 	for i := range r {
@@ -514,14 +522,14 @@ func Forward(exec ExecutorHandle, train bool) error {
 		t = C.int(1)
 	}
 	if e := C.MXExecutorForward(exec, t); e != 0 {
-		return fmt.Errorf("failed on mxnet forward: %v", mxLastError())
+		return errors.Errorf("failed on mxnet forward: %v", mxLastError())
 	}
 	return nil
 }
 
 func Backward(exec ExecutorHandle) error {
 	if e := C.MXExecutorBackward(exec, C.uint(0), nil); e != 0 {
-		return fmt.Errorf("failed on mxnet forward: %v", mxLastError())
+		return errors.Errorf("failed on mxnet forward: %v", mxLastError())
 	}
 	return nil
 }
@@ -532,10 +540,10 @@ func OptimizerUpdate(op MxnetOp, params, grads, state1 NDArrayHandle, state2 NDA
 	ano := C.int(Fillargs(keys[:], vals[:], a))
 	if ent := mxentry[op]; ent != nil {
 		if e := C.imperative_invokeN_inout(ent, params, ano, &keys[0], &vals[0], params, grads, state1, state2); e != 0 {
-			return fmt.Errorf("mxnet api %v error: %v", op.Value(), mxLastError())
+			return errors.Errorf("mxnet api %v error: %v", op.Value(), mxLastError())
 		}
 	} else {
-		return fmt.Errorf("unresolved API entry %v", op.Value())
+		return errors.Errorf("unresolved API entry %v", op.Value())
 	}
 	return nil
 }
@@ -543,7 +551,7 @@ func OptimizerUpdate(op MxnetOp, params, grads, state1 NDArrayHandle, state2 NDA
 func ToJson(sym SymbolHandle) ([]byte, error) {
 	var s *C.char
 	if e := C.MXSymbolSaveToJSON(sym, &s); e != 0 {
-		return nil, fmt.Errorf("mxnet failed to stringify symbol: %v", mxLastError())
+		return nil, errors.Errorf("mxnet failed to stringify symbol: %v", mxLastError())
 	}
 	ln := int(C.strlen(s))
 	bs := make([]byte, ln)
@@ -553,14 +561,14 @@ func ToJson(sym SymbolHandle) ([]byte, error) {
 
 func RandomSeed(seed int) error {
 	if e := C.MXRandomSeed(C.int(seed)); e != 0 {
-		return fmt.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
+		return errors.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
 	}
 	return nil
 }
 
 func ContextRandomSeed(seed, devType, devNo int) error {
 	if e := C.MXRandomSeedContext(C.int(seed), C.int(devType), C.int(devNo)); e != 0 {
-		return fmt.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
+		return errors.Errorf("mxnet failed to set ramdom seed: %v", mxLastError())
 	}
 	return nil
 }

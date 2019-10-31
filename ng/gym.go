@@ -11,9 +11,11 @@ import (
 type Verbosity int
 
 const (
-	Silent Verbosity = iota
+	_Silent Verbosity = iota
 	Printing
 	Logging
+	NoSummary = 0x1000
+	Silent = _Silent | NoSummary
 )
 
 type Gym struct {
@@ -40,9 +42,9 @@ type State interface {
 }
 
 func verbose(s string, verbosity Verbosity) {
-	if verbosity == Printing {
+	if verbosity&0x3 == Printing {
 		fmt.Println(s)
-	} else if verbosity == Logging {
+	} else if verbosity&0x3 == Logging {
 		logger.Info(s)
 	}
 }

@@ -1,5 +1,7 @@
 package ng
 
+import "fmt"
+
 type AvgLoss struct {
 	Avg   float64
 	Count int
@@ -43,4 +45,8 @@ func (a *AvgLoss) Add(val float32) {
 	}
 	a.Avg = (a.Avg*float64(a.Count) + float64(val)) / float64(a.Count+1)
 	a.Count += 1
+}
+
+func (a AvgLoss) String() string {
+	return fmt.Sprintf("loss: %.4f(%d)/%.4f", a.Last(), len(a.Hist), a.Value())
 }

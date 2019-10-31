@@ -16,7 +16,12 @@ type Convolution struct {
 	NoBias     bool
 	Groups     bool
 	BatchNorm  bool
+	Layout     string
 	Name       string
+	Round      int
+	TurnOff    bool
+	Output     bool
+	Dropout    float32
 }
 
 func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
@@ -24,21 +29,33 @@ func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*m
 		out, weight, bias *mx.Symbol
 		err               error
 	)
+
+	if ly.TurnOff {
+		return in, g, nil
+	}
+
 	ns := ly.Name
 	if ns == "" {
-		ns = fmt.Sprintf("Convolution%02d", mx.NextSymbolId())
+		ns = fmt.Sprintf("Conv%02d", mx.NextSymbolId())
 	}
 	weight = mx.Var(ns+"_weight", ly.WeightInit)
 	if !ly.NoBias {
 		init := ly.BiasInit
 		if init == nil {
-			init = &Const{0}
+			init = &Uniform{0.01}
 		}
 		bias = mx.Var(ns+"_bias", init)
 	}
-	out = mx.Conv(in, weight, bias, ly.Channels, ly.Kernel, ly.Stride, ly.Padding, ly.Groups)
+	k := ly.Kernel
+	if k.Len == 0 {
+		k = mx.Dim(1, 1)
+	}
+	out = mx.Conv(in, weight, bias, ly.Channels, k, ly.Stride, ly.Padding, ly.Groups, ly.Layout)
+	if ly.Round != 0 {
+		ns += fmt.Sprintf("$RNN%02d", ly.Round)
+	}
 	out.SetName(ns)
-	if ly.BatchNorm {
+	if ly.BatchNorm && ly.Round == 0 {
 		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
 			return nil, nil, err
 		}
@@ -47,6 +64,11 @@ func (ly *Convolution) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*m
 		out = ly.Activation(out)
 		out.SetName(ns + "$A")
 	}
+	if ly.Dropout > 0.01 {
+		out = mx.Dropout(out,ly.Dropout)
+		out.SetName(ns + "$D")
+	}
+	out.SetOutput(ly.Output)
 	return out, g, nil
 }
 
@@ -56,6 +78,7 @@ type MaxPool struct {
 	Padding mx.Dimension
 	Ceil    bool
 	Name    string
+	Round   int
 
 	BatchNorm bool
 }
@@ -70,8 +93,11 @@ func (ly *MaxPool) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Sy
 		ns = fmt.Sprintf("MaxPool%02d", mx.NextSymbolId())
 	}
 	out = mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, true)
+	if ly.Round != 0 {
+		ns += fmt.Sprintf("$RNN%02d", ly.Round)
+	}
 	out.SetName(ns)
-	if ly.BatchNorm {
+	if ly.BatchNorm && ly.Round == 0 {
 		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
 			return nil, nil, err
 		}
@@ -85,6 +111,7 @@ type AvgPool struct {
 	Padding mx.Dimension
 	Ceil    bool
 	Name    string
+	Round   int
 
 	BatchNorm bool
 }
@@ -99,8 +126,11 @@ func (ly *AvgPool) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Sy
 		ns = fmt.Sprintf("AvgPool%02d", mx.NextSymbolId())
 	}
 	out = mx.Pool(in, ly.Kernel, ly.Stride, ly.Padding, ly.Ceil, false)
+	if ly.Round != 0 {
+		ns += fmt.Sprintf("$RNN%02d", ly.Round)
+	}
 	out.SetName(ns)
-	if ly.BatchNorm {
+	if ly.BatchNorm && ly.Round == 0 {
 		if out, g, err = (&BatchNorm{Name: ns}).Combine(out, g...); err != nil {
 			return nil, nil, err
 		}

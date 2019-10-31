@@ -71,5 +71,68 @@ func (g *Erfc) Value() float32 {
 }
 
 func (g *Erfc) Satisfy() bool {
-	return g.Value() >= g.Accuracy
+	return g.Accuracy > 0 && g.Value() >= g.Accuracy
 }
+
+func ErfcAbs(output, label float32) float64 {
+	return math.Erfc(math.Abs(float64(label) - float64(output)))
+}
+
+type DetailedMetric struct {
+	Vals  []float64
+	Count []int
+	Accuracy float32
+	F     func(float32,float32) float64
+}
+
+func (g *DetailedMetric) Collect(data, label []float32) {
+	L := len(label)
+	if g.Vals == nil || g.Count == nil {
+		g.Vals = make([]float64,L+1)
+		g.Count = make([]int,L+1)
+	}
+	f := g.F
+	if f == nil {
+		f = ErfcAbs
+	}
+	var m float64
+	for i, v := range label {
+		q := f(v,data[i])
+		g.Vals[i] += q
+		g.Count[i]++
+		m += q
+	}
+	g.Vals[L] += m / float64(L)
+	g.Count[L]++
+}
+
+func (g *DetailedMetric) Reset() {
+	for i := range g.Vals {
+		g.Vals[i] = 0
+		g.Count[i] = 0
+	}
+}
+
+func (g *DetailedMetric) Value() float32 {
+	if g.Vals == nil {
+		return 0
+	}
+	return float32(g.Vals[len(g.Vals)-1] / float64(g.Count[len(g.Vals)-1]))
+}
+
+func (g *DetailedMetric) Detail(i int) float32 {
+	return float32(g.Vals[i] / float64(g.Count[i]))
+}
+
+func (g *DetailedMetric) Details() []float32 {
+	r := make([]float32, len(g.Vals)-1)
+	for i := range r {
+		r[i] = float32(g.Vals[i] / float64(g.Count[i]))
+	}
+	return r
+}
+
+func (g *DetailedMetric) Satisfy() bool {
+	return g.Accuracy > 0 && g.Value() >= g.Accuracy
+}
+

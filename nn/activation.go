@@ -9,6 +9,10 @@ func Sigmoid(a *mx.Symbol) *mx.Symbol {
 	return mx.Activation(a, mx.ActivSigmoid)
 }
 
+func HardSigmoid(a *mx.Symbol) *mx.Symbol {
+	return mx.HardSigmoid(a)
+}
+
 func Tanh(a *mx.Symbol) *mx.Symbol {
 	return mx.Activation(a, mx.ActivTanh)
 }
@@ -18,15 +22,15 @@ func Tanh25(a *mx.Symbol) *mx.Symbol {
 }
 
 func ReLU(a *mx.Symbol) *mx.Symbol {
-	return mx.Activation(a, mx.ReLU)
+	return mx.Activation(a, mx.ActivReLU)
 }
 
 func SoftReLU(a *mx.Symbol) *mx.Symbol {
-	return mx.Activation(a, mx.SoftReLU)
+	return mx.Activation(a, mx.ActivSoftReLU)
 }
 
 func SoftSign(a *mx.Symbol) *mx.Symbol {
-	return mx.Activation(a, mx.SoftSign)
+	return mx.Activation(a, mx.ActivSoftSign)
 }
 
 func Softmax(a *mx.Symbol) *mx.Symbol {
@@ -73,8 +77,9 @@ func (ly *Activation) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx
 }
 
 type BatchNorm struct {
-	Name         string
-	Mom, Epsilon float32
+	Name           string
+	Mom, Epsilon   float32
+	UseGlobalStats bool
 }
 
 func (ly *BatchNorm) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
@@ -89,7 +94,7 @@ func (ly *BatchNorm) Combine(in *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.
 	beta := mx.Var(ns+"_beta", &Const{0})
 	running_mean := mx.Var(ns+"_rmean", mx.Nograd, &Const{0})
 	running_var := mx.Var(ns+"_rvar", mx.Nograd, &Const{1})
-	out := mx.BatchNorm(in, gamma, beta, running_mean, running_var, ly.Mom, ly.Epsilon)
+	out := mx.BatchNorm(in, gamma, beta, running_mean, running_var, ly.Mom, ly.Epsilon, ly.UseGlobalStats)
 	out.SetName(ns)
 	return out, g, nil
 }

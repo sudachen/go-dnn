@@ -39,14 +39,14 @@ func (f *Network) Predict1(data interface{}, out []float32) error {
 	if err := f.Graph.Forward(false); err != nil {
 		return err
 	}
-	if err := f.Graph.Outputs[0].CopyValuesTo(out); err != nil {
+	if err := f.Graph.Output.CopyValuesTo(out); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (f *Network) Predict(data interface{}) ([][]float32, error) {
-	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
+	out := make([]float32, f.Graph.Output.Dim().Total())
 	if err := f.Predict1(data, out); err != nil {
 		return nil, err
 	}
@@ -66,11 +66,11 @@ type Metric interface {
 }
 
 func (f *Network) Test(data, label []float32, metric Metric) (err error) {
-	out := make([]float32, f.Graph.Outputs[0].Dim().Total())
+	out := make([]float32, f.Graph.Output.Dim().Total())
 	if err = f.Predict1(data, out); err != nil {
 		return
 	}
-	count := f.Graph.Outputs[0].Len(0)
+	count := f.Graph.Output.Len(0)
 	outw := len(out) / count
 	labelw := len(label) / count
 	for i := 0; i < count; i++ {
@@ -98,12 +98,10 @@ func (f *Network) Train(data interface{}, label interface{}, opt Optimizer) erro
 }
 
 func (f *Network) Update(opt Optimizer) error {
-	for _, p := range f.Graph.Params {
-		if p.Autograd && p.Grad != nil {
-			err := opt.Update(p.Data, p.Grad)
-			if err != nil {
-				return err
-			}
+	for k, g := range f.Graph.Grads {
+		err := opt.Update(f.Graph.Params[k], g)
+		if err != nil {
+			return err
 		}
 	}
 	return nil
@@ -129,23 +127,20 @@ func (f *Network) SetParams(p Params, force bool) error {
 	if err := f.checkParams(p, force); err != nil {
 		return err
 	}
-	for n, d := range f.Params {
+	return f.Graph.Initialize(func(d *mx.NDArray, n string) error {
 		a, ok := p.P[n]
 		if ok {
-			if err := d.Data.SetValues(a[5:]); err != nil {
-				return err
-			}
+			return d.SetValues(a[5:])
 		}
-	}
-	f.Graph.Initialized = true
-	return nil
+		return f.Graph.InitParam(n)
+	})
 }
 
 func (f *Network) checkParams(p Params, force bool) error {
 	for n, d := range f.Params {
 		a, ok := p.P[n]
 		if ok {
-			dm := d.Data.Dim()
+			dm := d.Dim()
 			if dm.Total() == len(a)-5 {
 				if !force {
 					x := mx.Dimension{Len: int(a[0]), Shape: [4]int{int(a[1]), int(a[2]), int(a[3]), int(a[4])}}
@@ -158,10 +153,12 @@ func (f *Network) checkParams(p Params, force bool) error {
 				return fmt.Errorf("parameter %v has %d values but network requires %d",
 					n, len(a)-5, dm.Total())
 			}
-		} else {
+		} else if n[0] != '_' {
 			if !force {
 				return fmt.Errorf("absent parameter %v required by network", n)
 			}
+		} else {
+
 		}
 	}
 	return nil
@@ -170,22 +167,18 @@ func (f *Network) checkParams(p Params, force bool) error {
 func (net *Network) GetParams() (Params, error) {
 	p := Params{map[string][]float32{}}
 	for n, d := range net.Params {
-		dm := d.Data.Dim()
-		a := make([]float32, dm.Total()+5)
-		a[0] = float32(dm.Len)
-		for i := 0; i < 4; i++ {
-			a[i+1] = float32(dm.Shape[i])
+		if n[0] != '_' {
+			dm := d.Dim()
+			a := make([]float32, dm.Total()+5)
+			a[0] = float32(dm.Len)
+			for i := 0; i < 4; i++ {
+				a[i+1] = float32(dm.Shape[i])
+			}
+			if err := d.ReCopyValuesTo(a[5:]); err != nil {
+				return Params{}, err
+			}
+			p.P[n] = a
 		}
-
-		// MXNET/DNNML performance workaround
-		z := mx.CPU.CopyAs(d.Data, mx.Float32)
-
-		if err := z.CopyValuesTo(a[5:]); err != nil {
-			return Params{}, err
-		}
-
-		p.P[n] = a
-		z.Release()
 	}
 	return p, nil
 }

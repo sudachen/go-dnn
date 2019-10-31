@@ -2,9 +2,9 @@ package mx
 
 import (
 	"fmt"
+	"github.com/sudachen/errors"
 	"github.com/sudachen/go-dnn/fu"
 	"github.com/sudachen/go-dnn/mx/capi"
-	"io"
 	"runtime"
 	"strings"
 )
@@ -12,14 +12,14 @@ import (
 type GraphIdentity [20]byte // SHA1
 
 type Loss interface {
-	// out, label => loss, sparse
-	// sparse means label dimensions reduced by last one
-	Loss(*Symbol, *Symbol) (*Symbol, bool)
+	// out => loss
+	Loss(*Symbol) *Symbol
 }
 
 type Param struct {
 	Data     *NDArray
 	Grad     *NDArray
+	Shape    Dimension
 	Autograd bool
 }
 
@@ -27,11 +27,16 @@ type Graph struct {
 	Ctx   Context
 	Dtype Dtype
 
-	Input   *NDArray   // network input
-	Outputs []*NDArray // referencing to executor outputs except loss
-	Loss    *NDArray   // referencing to last executor output
-	Label   *NDArray   // loss function label
-	Params  map[string]Param
+	Input   *NDArray  // network input referencing to Params["_input"]
+	Output  *NDArray  // referencing to Outputs["_output_output"]
+	Loss    *NDArray  // referencing to Outputs["_loss_loss"]
+	Label   *NDArray  // loss function label referencing to Params["_label"]
+
+	Outputs  map[string]*NDArray  // referencing to executor outputs except loss
+	Params   map[string]*NDArray  // network parameters
+	Shapes   map[string]Dimension // predefined param shape
+	Autograd map[string]bool      // if param can be trained
+	Grads    map[string]*NDArray  // training gradients
 
 	Exec         capi.ExecutorHandle
 	Initializers map[string]Inite
@@ -44,6 +49,9 @@ type Graph struct {
 	auxs    []capi.NDArrayHandle
 
 	identity *GraphIdentity
+	alias    map[*Symbol]*Symbol
+	outputs  map[string]*Symbol
+	refs     map[string]capi.SymbolHandle
 }
 
 func (g *Graph) symRelease() {
@@ -57,6 +65,9 @@ func (g *Graph) symRelease() {
 		capi.ReleaseSymbol(v)
 	}
 	g.vars = nil
+	g.alias = nil
+	g.refs = nil
+	g.outputs = nil
 }
 
 func (g *Graph) Release() {
@@ -70,59 +81,46 @@ func (g *Graph) Release() {
 	capi.ReleaseSymbol(g.symOut)
 	g.symOut = nil
 
-	g.Input.Release()
-	g.Label.Release()
-
 	capi.ReleaseExecutor(g.Exec)
 	g.Exec = nil
 
 	for _, v := range g.Params {
-		v.Data.Release()
-		v.Grad.Release()
+		v.Release()
 	}
 	g.Params = nil
+	for _, v := range g.Grads {
+		v.Release()
+	}
+	g.Grads = nil
 
 	for _, v := range g.auxs {
 		capi.ReleaseNDArry(v)
 	}
 }
 
-func (g *Graph) LoadParams(reader io.Reader) error {
-	return nil
-}
-
-func (g *Graph) SaveParams(writer io.Writer) error {
-	return nil
-}
-
 func (g *Graph) allocate(shapes map[string][]int) error {
+
 	for n, s := range shapes {
-		if n == "_label" {
-			if g.Label = g.Ctx.Array(g.Dtype, Dim(s...)); g.Label.Err() != nil {
-				return g.Label.Err()
+		_, ok := g.Params[n]
+		if !ok {
+			if s2, ok := g.Shapes[n]; ok { s = s2.Slice() }
+			a := g.Ctx.Array(g.Dtype, Dim(s...))
+			if a.Err() != nil {
+				return a.Err()
 			}
-		} else if n != "_output" && n != "_input" {
-			p, ok := g.Params[n]
-			if !ok || p.Data == nil {
-				a := g.Ctx.Array(g.Dtype, Dim(s...))
-				if a.Err() != nil {
-					return a.Err()
-				}
-				p.Data = a
-				g.Params[n] = p
-			}
+			g.Params[n] = a
 		}
 	}
+
 	return nil
 }
 
 func (g *Graph) GetShapes(withLoss bool) (map[string][]int, error) {
 	var (
-		err                  error
-		inter                capi.SymbolHandle
-		sym                  capi.SymbolHandle = g.symLast
-		input, label, output Dimension
-		shapes               map[string][]int
+		err    error
+		inter  capi.SymbolHandle
+		sym    capi.SymbolHandle = g.symLast
+		shapes map[string][]int
 	)
 
 	if withLoss {
@@ -133,57 +131,45 @@ func (g *Graph) GetShapes(withLoss bool) (map[string][]int, error) {
 		return nil, err
 	}
 
-	input = g.Input.Dim()
-	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if withLoss && g.Label != nil {
-		label = g.Label.Dim()
-		x["_label"] = label.Shape[:label.Len]
+	x := map[string][]int{"_input": g.Input.Dim().Slice()}
+	n, err := capi.ListNames(sym, capi.ArgumentsNames)
+
+	for _, name := range n {
+		if p, ok := g.Shapes[name]; ok && p.Len != 0 {
+			x[name] = p.Slice()
+		}
 	}
 
 	if shapes, err = capi.InferShapes(inter, x, capi.WithArguments|capi.WithOutputs); err != nil {
 		return nil, err
 	}
 
-	shapes["_input"] = input.Shape[1:input.Len]
-	if label.Len != 0 {
-		shapes["_label"] = label.Shape[:label.Len]
-	}
-
-	for n, o := range g.Outputs {
-		output = o.Dim()
-		shapes[fmt.Sprintf("_output%d", n)] = output.Shape[:label.Len]
-	}
-
 	return shapes, nil
 }
 
-func (g *Graph) bind(input Dimension, sparse bool) error {
+func (g *Graph) bind() error {
 	var (
 		shapes map[string][]int
 		err    error
 		names  []string
 		o      []capi.NDArrayInfo
-		d      Dimension
 	)
+	input := g.Input.Dim()
 	x := map[string][]int{"_input": input.Shape[:input.Len]}
-	if shapes, err = capi.InferShapes(g.symLast, x, capi.WithArguments|capi.WithAuxStates); err != nil {
-		return err
-	}
-	if g.Input = g.Ctx.Array(g.Dtype, input); g.Input.Err() != nil {
-		return g.Input.Err()
-	}
+
 	if names, err = capi.ListNames(g.symOut, capi.ArgumentsNames); err != nil {
 		return err
 	}
-	if g.symLast != g.symOut && fu.Contains(names, "_label") {
-		d = Dim(shapes["_output"]...)
-		if sparse {
-			d.Len -= 1
+
+	for _, n := range names {
+		if p, ok := g.Shapes[n]; ok && p.Len != 0 {
+			x[n] = p.Slice()
 		}
-		x["_label"] = d.Shape[:d.Len]
-		if shapes, err = capi.InferShapes(g.symOut, x, capi.WithArguments|capi.WithAuxStates); err != nil {
-			return err
-		}
+	}
+
+	shapes, err = capi.InferShapes(g.symOut, x, capi.WithArguments|capi.WithAuxStates|capi.WithoutOutput)
+	if err != nil {
+		return err
 	}
 
 	if err = g.allocate(shapes); err != nil {
@@ -192,22 +178,21 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 
 	args := make([]capi.NDArrayHandle, len(names))
 	grads := make([]capi.NDArrayHandle, len(names))
+
+	g.Input  = g.Params["_input"]
+	g.Label  = g.Params["_label"]
+
 	for i, name := range names {
-		if name == "_input" {
-			args[i] = g.Input.handle
-		} else if name == "_label" {
-			args[i] = g.Label.handle
-		} else {
-			p := g.Params[name]
-			args[i] = p.Data.handle
-			if g.symLast != g.symOut && p.Autograd {
-				a := g.Ctx.Array(g.Dtype, p.Data.Dim())
+		p := g.Params[name]
+		if p != nil {
+			args[i] = p.handle
+			if g.symLast != g.symOut && g.Autograd[name] {
+				a := g.Ctx.Array(g.Dtype,p.Dim())
 				if a.Err() != nil {
 					return a.Err()
 				}
-				p.Grad = a
+				g.Grads[name] = a
 				grads[i] = a.handle
-				g.Params[name] = p
 			}
 		}
 	}
@@ -216,7 +201,7 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 	aux := make([]capi.NDArrayHandle, len(auxnam))
 	for i, name := range auxnam {
 		if p, ok := g.Params[name]; ok {
-			aux[i] = p.Data.handle
+			aux[i] = p.handle
 		}
 	}
 
@@ -228,16 +213,24 @@ func (g *Graph) bind(input Dimension, sparse bool) error {
 		return err
 	}
 
-	g.Outputs = make([]*NDArray, len(o))
-	for i, v := range o {
-		g.Outputs[i] = &NDArray{handle: v.Handle, ctx: g.Ctx, dim: Dim(v.Dim...), dtype: Dtype(v.Type)}
+	if names, err = capi.ListNames(g.symOut, capi.OutputNames); err != nil {
+		return err
+	}
+
+	g.Outputs = make(map[string]*NDArray)
+	for i, n := range names {
+		v := o[i]
+		if strings.HasSuffix(n,"_output") {
+			n = strings.TrimSuffix(n, "_output")
+		} else {
+			n = strings.TrimSuffix(n, "_loss")
+		}
+		g.Outputs[n] = &NDArray{handle: v.Handle, ctx: g.Ctx, dim: Dim(v.Dim...), dtype: Dtype(v.Type)}
 	}
 	if g.symLast != g.symOut {
-		g.Loss = g.Outputs[len(o)-1]
-		g.Outputs = g.Outputs[:len(o)-1]
-	} else {
-		g.Loss = g.Outputs[0]
+		g.Loss = g.Outputs["_loss"]
 	}
+	g.Output = g.Outputs["_output"]
 	return nil
 }
 
@@ -257,10 +250,21 @@ func Compose(
 	g := &Graph{
 		Ctx:          ctx,
 		Dtype:        dtype,
-		Params:       make(map[string]Param),
+		Params:       make(map[string]*NDArray),
+		Grads:        make(map[string]*NDArray),
+		Autograd:     make(map[string]bool),
+		Shapes:       make(map[string]Dimension),
 		symbols:      make(map[*Symbol]capi.SymbolHandle),
 		vars:         make(map[string]capi.SymbolHandle),
+		refs:         make(map[string]capi.SymbolHandle),
+		alias:        make(map[*Symbol]*Symbol),
+		outputs:      make(map[string]*Symbol),
 		Initializers: make(map[string]Inite),
+	}
+
+	if g.Input = ctx.Array(dtype, input); g.Input.Err() != nil {
+		g.Release()
+		return nil, g.Input.Err()
 	}
 
 	if _, err = g.compose(Var("_input")); err != nil {
@@ -268,31 +272,42 @@ func Compose(
 		return nil, err
 	}
 
-	if last, err = g.compose(sym); err != nil {
+	//Out := MakeLoss(BlockGrad(sym))
+	Out := BlockGrad(sym)
+	Out.SetName("_output")
+	if last, err = g.compose(Out); err != nil {
 		g.Release()
 		return nil, err
 	}
-
 	out = last
 
-	var sparse bool
 	if loss != nil {
-		var symloss *Symbol
-		symloss, sparse = loss.Loss(sym, Var("_label"))
-		l := Group(
-			MakeLoss(BlockGrad(sym)),
-			MakeLoss(symloss))
+		symloss := loss.Loss(sym)
+		Loss := MakeLoss(symloss)
+		Loss.SetName("_loss")
+		_,_ = g.compose(symloss)
+		others := fu.ValsOf(g.outputs).([]*Symbol)
+		outs := append([]*Symbol{Out,Loss},others...)
+		l := Group(outs...)
 		if out, err = g.compose(l); err != nil {
 			g.Release()
 			return nil, err
 		}
+	} else if len(g.outputs) > 0 {
+		others := fu.ValsOf(g.outputs).([]*Symbol)
+		outs := append([]*Symbol{Out},others...)
+		if last, err = g.compose(Group(outs...)); err != nil {
+			g.Release()
+			return nil, err
+		}
+		out = last
 	}
 
 	g.symLast = last
 	g.symOut = out
 	g.symRelease() // other symbols are not necessary more
 
-	if err = g.bind(input, sparse); err != nil {
+	if err = g.bind(); err != nil {
 		g.Release()
 		return nil, err
 	}
@@ -320,6 +335,9 @@ func (g *Graph) subcompose(s *Symbol) ([]capi.SymbolHandle, error) {
 
 func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 
+	if a, ok := g.alias[s]; ok {
+		return g.symbols[a], nil
+	}
 	if h, ok := g.symbols[s]; ok {
 		return h, nil
 	}
@@ -329,6 +347,11 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 		return g.vars["_input"], nil
 	case OpScalar_:
 		return nil, nil
+	case OpRef_:
+		if s, ok := g.refs[s.name]; ok {
+			return s, nil
+		}
+		return nil, errors.Errorf("symbol %s does not exist", s.name)
 	case OpVar_, OpNogVar_:
 		n := s.name
 		if v, ok := g.vars[n]; ok {
@@ -336,18 +359,54 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 		}
 		h, e := capi.CreateVariable(n)
 		if e != 0 {
-			return nil, fmt.Errorf("failed to create mxnet variable")
+			return nil, errors.Errorf("failed to create mxnet variable")
 		}
 		g.vars[n] = h
+		g.refs[n] = h
 		if s.init != nil {
 			g.Initializers[n] = s.init
 		}
-		if s.op != OpNogVar_ && n != "_input" && n != "_label" {
-			p := g.Params[n]
-			p.Autograd = true
-			g.Params[n] = p
+		if s.op != OpNogVar_ && n[0] != '_' {
+			g.Autograd[n] = true
+		}
+		if s.dim.Len > 0 {
+			g.Shapes[n] = s.dim.Like(g.Input.Dim())
 		}
 		return h, nil
+	case OpOutput_:
+		n := "*"+s.name
+		if _,ok := g.outputs[n]; !ok {
+			g.outputs[n] = BlockGrad(s.args[0]).SetName(n)
+		}
+		return g.compose(s.args[0])
+	case OpBound_:
+		h, err := g.compose(s.args[0])
+		if err != nil {
+			return nil, err
+		}
+		for _, v := range s.args[1:] {
+			if _, err = g.compose(v); err != nil {
+				return nil, err
+			}
+		}
+		return h, nil
+	case OpDepend_:
+		for _, v := range s.args[1:] {
+			if _, err := g.compose(v); err != nil {
+				return nil, err
+			}
+		}
+		return g.compose(s.args[0])
+	case capi.OpZeros, capi.OpOnes, capi.OpRandomUniform:
+		s1 := *s
+		s1.attr = make(map[capi.MxnetKey]string)
+		for key, value := range s.attr {
+			s1.attr[key] = value
+		}
+		s1.attr[capi.KeyShape] = s.dim.Like(g.Input.Dim()).String()
+		a := &s1
+		g.alias[s] = a
+		s = a
 	}
 
 	var err error
@@ -383,31 +442,54 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 		if err := capi.ComposeSymbol(op, name, a...); err != nil {
 			return nil, err
 		}
+
+		if s.name != "" {
+			g.refs[s.name] = op
+		}
+
+		if s.output {
+			n := "*"+name
+			if _,ok := g.outputs[n]; !ok {
+				g.outputs[n] = BlockGrad(s).SetName(n)
+			}
+		}
 	}
 
 	return op, nil
 }
 
+func (g *Graph) InitParam(name string) error {
+	param := g.Params[name]
+	if i, ok := g.Initializers[name]; ok && i != nil {
+		if err := i.Inite(param); err != nil {
+			return err
+		}
+	} else {
+		var err error
+		if name[0] == '_' {
+			err = param.Zeros().Err()
+		} else if strings.Index(name, "_bias") >= 0 {
+			err = param.Zeros().Err()
+		} else {
+			err = param.Xavier(false, 2, 3).Err()
+		}
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (g *Graph) Initialize(inite func(*NDArray, string) error) error {
 	keys := fu.SortedDictKeys(g.Params)
 	for _, name := range keys {
-		param := g.Params[name]
-		if i, ok := g.Initializers[name]; ok && i != nil {
-			if err := i.Inite(param.Data); err != nil {
-				return err
-			}
-		} else if inite != nil {
-			if err := inite(param.Data, name); err != nil {
+		if inite != nil {
+			param := g.Params[name]
+			if err := inite(param, name); err != nil {
 				return err
 			}
 		} else {
-			var err error
-			if strings.Index(name, "_bias") >= 0 {
-				err = param.Data.Zeros().Err()
-			} else {
-				err = param.Data.Xavier(false, 2, 3).Err()
-			}
-			if err != nil {
+			if err := g.InitParam(name); err != nil {
 				return err
 			}
 		}

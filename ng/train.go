@@ -43,7 +43,7 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (metric float32, params nn.Pa
 	}
 
 	gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity()))
-	if gym.Verbose != Silent {
+	if gym.Verbose&NoSummary == 0 {
 		_ = net.SummaryOut(true, gym.verbose)
 	}
 
