@@ -140,6 +140,7 @@ const (
 	OpDot
 	OpPick
 	OpSquare
+	OpSqrt
 	OpConcat
 	OpConvolution
 	OpActivation
@@ -218,6 +219,7 @@ var opmap = map[MxnetOp]string{
 	OpDot:            "dot",
 	OpPick:           "pick",
 	OpSquare:         "square",
+	OpSqrt:           "sqrt",
 	OpConcat:         "Concat",
 	OpConvolution:    "Convolution",
 	OpActivation:     "Activation",

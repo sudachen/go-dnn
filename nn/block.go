@@ -1,7 +1,6 @@
 package nn
 
 import (
-	"fmt"
 	"github.com/sudachen/go-dnn/mx"
 )
 
@@ -91,18 +90,3 @@ func (rcb *ResidualBlock) Combine(a *mx.Symbol, b ...*mx.Symbol) (*mx.Symbol, []
 	return mx.Add(a, c), b, nil
 }
 
-type Output struct {
-	Name string
-	Round int
-}
-
-func (ly *Output) Combine(a *mx.Symbol, b ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
-	name := ly.Name
-	if name == "" {
-		name = fmt.Sprintf("Output%d", mx.NextSymbolId())
-	}
-	if ly.Round > 0 {
-		name = fmt.Sprintf("%s$RNN%02d", name, ly.Round)
-	}
-	return mx.Output(a, name), b, nil
-}

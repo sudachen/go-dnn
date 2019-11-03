@@ -22,6 +22,11 @@ type Inite interface {
 	Inite(*NDArray) error
 }
 
+type _Value struct { Value []float32 }
+func (v *_Value) Inite(arr *NDArray) error {
+	return arr.SetValues(v.Value)
+}
+
 var _symbolId = 0
 
 func NextSymbolId() int {
@@ -258,6 +263,10 @@ func Var(name string, opt ...interface{}) *Symbol {
 	return s
 }
 
+func Value(name string, a ...float32) *Symbol{
+	return Var(name, Dim(len(a)), &_Value{Value: a})
+}
+
 func Ref(name string, a ...*Symbol) *Symbol {
 	return &Symbol{op: OpRef_, name: name, args: a}
 }
@@ -284,6 +293,10 @@ func Abs(a *Symbol) *Symbol {
 
 func Square(a *Symbol) *Symbol {
 	return &Symbol{op: capi.OpSquare, args: []*Symbol{a}}
+}
+
+func Sqrt(a *Symbol) *Symbol {
+	return &Symbol{op: capi.OpSqrt, args: []*Symbol{a}}
 }
 
 func Minus(a *Symbol) *Symbol {
@@ -372,6 +385,15 @@ func Sum(a *Symbol, axis ...int) *Symbol {
 		s.attr = map[capi.MxnetKey]string{
 			capi.KeyAxis: formatAxis(axis...),
 		}
+	}
+	return s
+}
+
+func Sum1(a *Symbol) *Symbol {
+	s := &Symbol{op: capi.OpSum, args: []*Symbol{a}}
+	s.attr = map[capi.MxnetKey]string{
+		capi.KeyAxis: "-1",
+		capi.KeyKeepdims: "1",
 	}
 	return s
 }

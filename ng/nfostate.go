@@ -16,6 +16,7 @@ type NfoState struct {
 	Optimizer nn.OptimizerConf
 	Gnfo      GymInfo
 	GnfoDir   string
+	OnEpoch   func(epoch int, net *nn.Network)error
 }
 
 func (st *NfoState) Setup(net *nn.Network, iniSeed int) (seed int, err error) {
@@ -47,6 +48,11 @@ func (st *NfoState) Setup(net *nn.Network, iniSeed int) (seed int, err error) {
 }
 
 func (st *NfoState) Preset(net *nn.Network) (opt nn.Optimizer, err error) {
+	if st.OnEpoch != nil {
+		if err = st.OnEpoch(st.Epoch,net); err != nil {
+			return
+		}
+	}
 	return st.Optimizer.Init(st.Epoch)
 }
 
