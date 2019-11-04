@@ -83,10 +83,14 @@ func Residual(a ...Block) Block {
 }
 
 func (rcb *ResidualBlock) Combine(a *mx.Symbol, b ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
-	c, b, err := Connect(rcb.blocks...).Combine(a, b...)
-	if err != nil {
-		return nil, nil, err
+	var err error
+	for _, n := range rcb.blocks {
+		var c *mx.Symbol
+		if c, b, err = n.Combine(a,b...); err != nil {
+			return nil, nil, err
+		}
+		a = mx.Add(a,c)
 	}
-	return mx.Add(a, c), b, nil
+	return a, b, nil
 }
 
