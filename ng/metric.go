@@ -75,7 +75,8 @@ func (g *Erfc) Satisfy() bool {
 }
 
 func ErfcAbs(output, label float32) float64 {
-	return math.Erfc(math.Abs(float64(label) - float64(output)))
+	dif := math.Abs(float64(label) - float64(output))
+	return math.Erfc(dif)
 }
 
 type DetailedMetric struct {

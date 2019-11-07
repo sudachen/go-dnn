@@ -288,10 +288,16 @@ func Compose(
 		_,_ = g.compose(symloss)
 		others := fu.ValsOf(g.outputs).([]*Symbol)
 		outs := append([]*Symbol{Out,Loss},others...)
-		l := Group(outs...)
-		if out, err = g.compose(l); err != nil {
+		if out, err = g.compose(Group(outs...)); err != nil {
 			g.Release()
 			return nil, err
+		}
+		if len(others) > 0 {
+			outs := append([]*Symbol{Out},others...)
+			if last, err = g.compose(Group(outs...)); err != nil {
+				g.Release()
+				return nil, err
+			}
 		}
 	} else if len(g.outputs) > 0 {
 		others := fu.ValsOf(g.outputs).([]*Symbol)

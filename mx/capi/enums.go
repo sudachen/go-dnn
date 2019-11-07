@@ -137,6 +137,7 @@ const (
 	OpSoftmaxCE
 	OpSoftmaxAC
 	OpSum
+	OpSumNan
 	OpDot
 	OpPick
 	OpSquare
@@ -216,6 +217,7 @@ var opmap = map[MxnetOp]string{
 	OpSoftmaxAC:      "SoftmaxActivation",
 	OpSoftmaxOutput:  "SoftmaxOutput",
 	OpSum:            "sum",
+	OpSumNan:         "nansum",
 	OpDot:            "dot",
 	OpPick:           "pick",
 	OpSquare:         "square",

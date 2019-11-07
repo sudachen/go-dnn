@@ -379,6 +379,16 @@ func formatAxis(axis ...int) string {
 	}
 }
 
+func SumNan(a *Symbol, axis ...int) *Symbol {
+	s := &Symbol{op: capi.OpSumNan, args: []*Symbol{a}}
+	if len(axis) > 0 {
+		s.attr = map[capi.MxnetKey]string{
+			capi.KeyAxis: formatAxis(axis...),
+		}
+	}
+	return s
+}
+
 func Sum(a *Symbol, axis ...int) *Symbol {
 	s := &Symbol{op: capi.OpSum, args: []*Symbol{a}}
 	if len(axis) > 0 {

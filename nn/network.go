@@ -2,6 +2,7 @@ package nn
 
 import (
 	"fmt"
+	"github.com/google/logger"
 	"github.com/sudachen/go-dnn/mx"
 )
 
@@ -142,11 +143,14 @@ func (f *Network) checkParams(p Params, force bool) error {
 		if ok {
 			dm := d.Dim()
 			if dm.Total() == len(a)-5 {
-				if !force {
-					x := mx.Dimension{Len: int(a[0]), Shape: [4]int{int(a[1]), int(a[2]), int(a[3]), int(a[4])}}
-					if dm != x {
-						return fmt.Errorf("parameter %v has dim %v but network requires %v",
-							n, x, dm)
+				x := mx.Dimension{Len: int(a[0]), Shape: [4]int{int(a[1]), int(a[2]), int(a[3]), int(a[4])}}
+				if dm != x {
+					msg := fmt.Sprintf("parameter %v has dim %v but network requires %v",
+						n, x, dm)
+					if !force {
+						return fmt.Errorf("%v",msg)
+					} else {
+						logger.Warning(msg)
 					}
 				}
 			} else {
@@ -154,8 +158,11 @@ func (f *Network) checkParams(p Params, force bool) error {
 					n, len(a)-5, dm.Total())
 			}
 		} else if n[0] != '_' {
+			msg := fmt.Sprintf("nonexistent parameter %v is required by network", n)
 			if !force {
-				return fmt.Errorf("absent parameter %v required by network", n)
+				return fmt.Errorf("%v", msg)
+			} else {
+				logger.Warning(msg)
 			}
 		} else {
 

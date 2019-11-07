@@ -94,7 +94,7 @@ func (gs *GymInfo) SaveParams(epoch int, net *nn.Network, dir string) (err error
 
 func (gs *GymInfo) LoadParams(epoch int, net *nn.Network, dir string) (err error) {
 	fname := filepath.Join(dir, fmt.Sprintf(ParamsFmt, epoch))
-	return net.LoadParamsFile(fname, false)
+	return net.LoadParamsFile(fname, true)
 }
 
 func (g *GymInfo) WriteNetwork(net *nn.Network, dir string) (err error) {

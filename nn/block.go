@@ -32,10 +32,14 @@ type BlockConcat struct {
 
 func (bc *BlockConcat) Combine(s *mx.Symbol, g ...*mx.Symbol) (*mx.Symbol, []*mx.Symbol, error) {
 	var err error
-	b := make([]*mx.Symbol, len(bc.blocks))
-	for i, v := range bc.blocks {
-		if b[i], _, err = v.Combine(s, g...); err != nil {
-			return nil, nil, err
+	b := make([]*mx.Symbol, 0, len(bc.blocks))
+	for _, v := range bc.blocks {
+		if v != nil {
+			var x *mx.Symbol
+			if x, _, err = v.Combine(s, g...); err != nil {
+				return nil, nil, err
+			}
+			b = append(b,x)
 		}
 	}
 	return mx.Concat(b...), g, nil
