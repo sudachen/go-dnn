@@ -127,11 +127,14 @@ func (g *DetailedMetric) Detail(i int) float32 {
 }
 
 func (g *DetailedMetric) Details() []float32 {
-	r := make([]float32, len(g.Vals)-1)
-	for i := range r {
-		r[i] = float32(g.Vals[i] / float64(g.Count[i]))
+	if g.Vals != nil {
+		r := make([]float32, len(g.Vals)-1)
+		for i := range r {
+			r[i] = float32(g.Vals[i] / float64(g.Count[i]))
+		}
+		return r
 	}
-	return r
+	return []float32{}
 }
 
 func (g *DetailedMetric) Satisfy() bool {

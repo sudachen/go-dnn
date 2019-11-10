@@ -101,6 +101,15 @@ func FindMax(a []float32) (int, float32) {
 	return j, r
 }
 
+func Above(x float32, a []float32) bool {
+	for _, q := range a {
+		if q <= x {
+			return false
+		}
+	}
+	return true
+}
+
 func IfElse(t bool, a, b float32) float32 {
 	if t {
 		return a
@@ -116,7 +125,7 @@ func IfElseI(t bool, a, b int) int {
 }
 
 func IfZero(a, b float32) float32 {
-	if a > -1e-8 && a < 1e-8 {
+	if a > -1e-12 && a < 1e-12 {
 		return b
 	}
 	return a
@@ -124,7 +133,7 @@ func IfZero(a, b float32) float32 {
 
 func Equal(a, b float32) bool {
 	q := a-b
-	return q > -1e-8 && q < 1e-8
+	return q > -1e-12 && q < 1e-12
 }
 
 func IfZeroI(a, b int) int {
@@ -189,4 +198,8 @@ func SoftMax(a []float32) (b []float32) {
 
 func Abs(a float32) float32 {
 	return float32(math.Abs(float64(a)))
+}
+
+func Sqrt(a float32) float32 {
+	return float32(math.Sqrt(math.Abs(float64(a))))
 }

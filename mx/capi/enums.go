@@ -175,6 +175,7 @@ const (
 	OpEq
 	OpLesser
 	OpGreater
+	OpReshape
 	OpReshapeLike
 	OpAnd
 	OpOr
@@ -257,6 +258,7 @@ var opmap = map[MxnetOp]string{
 	OpEqScalar:       "_equal_scalar",
 	OpLesserScalar:   "_lesser_scalar",
 	OpGreaterScalar:  "_greater_scalar",
+	OpReshape:        "Reshape",
 	OpReshapeLike:    "reshape_like",
 	OpBatchNorm:      "BatchNorm",
 	OpDropout:        "Dropout",

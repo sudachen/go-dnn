@@ -42,8 +42,8 @@ func (gym *Gym) Train(ctx mx.Context, nb nn.Block) (metric float32, params nn.Pa
 		return
 	}
 
-	gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity()))
 	if gym.Verbose&NoSummary == 0 {
+		gym.verbose(fmt.Sprintf("Network Identity: %v", net.Identity().String()[12]))
 		_ = net.SummaryOut(true, gym.verbose)
 	}
 

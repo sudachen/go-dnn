@@ -680,6 +680,14 @@ func Ones(dim ...int) *Symbol {
 	}
 }
 
+func Reshape(a *Symbol, dim ...int) *Symbol {
+	return &Symbol{
+		op:  capi.OpReshape,
+		dim: Dim(dim...),
+		args: []*Symbol{a},
+	}
+}
+
 func OnesLike(a *Symbol) *Symbol {
 	return &Symbol{
 		op:   capi.OpOnesLike,

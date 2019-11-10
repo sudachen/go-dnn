@@ -403,7 +403,7 @@ func (g *Graph) compose(s *Symbol) (capi.SymbolHandle, error) {
 			}
 		}
 		return g.compose(s.args[0])
-	case capi.OpZeros, capi.OpOnes, capi.OpRandomUniform:
+	case capi.OpZeros, capi.OpOnes, capi.OpRandomUniform, capi.OpReshape:
 		s1 := *s
 		s1.attr = make(map[capi.MxnetKey]string)
 		for key, value := range s.attr {

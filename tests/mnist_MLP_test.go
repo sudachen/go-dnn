@@ -13,7 +13,7 @@ import (
 
 var mnistMLP0 = nn.Connect(
 	&nn.FullyConnected{Size: 128, Activation: nn.ReLU},
-	&nn.FullyConnected{Size: 64, Activation: nn.Swish, BatchNorm: true},
+	&nn.FullyConnected{Size: 64, Activation: nn.Swish, BatchNorm: true },
 	&nn.FullyConnected{Size: 10, Activation: nn.Softmax, BatchNorm: true})
 
 func Test_mnistMLP0(t *testing.T) {
@@ -22,7 +22,7 @@ func Test_mnistMLP0(t *testing.T) {
 		Optimizer: &nn.Adam{Lr: .001},
 		Loss:      &nn.LabelCrossEntropyLoss{},
 		Input:     mx.Dim(32, 1, 28, 28),
-		Epochs:    5,
+		Epochs:    10,
 		Verbose:   ng.Printing,
 		Every:     1 * time.Second,
 		Dataset:   &mnist.Dataset{},
