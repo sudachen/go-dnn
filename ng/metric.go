@@ -29,7 +29,6 @@ func (c *Classification) Collect(data, label []float32) {
 	if maxindex == index {
 		c.ok++
 	}
-
 }
 
 func (c *Classification) Reset() {
@@ -55,7 +54,8 @@ type Erfc struct {
 func (g *Erfc) Collect(data, label []float32) {
 	var m float64
 	for i, v := range label {
-		m += math.Erfc(math.Abs(float64(v - data[i])))
+		m += math.Erfc(math.Abs(float64(v - data[i]))/math.Abs(float64(v)))
+		//m += math.Erfc(math.Abs(float64(v - data[i])))
 	}
 	g.vals += m / float64(len(label))
 	g.count++
@@ -76,7 +76,8 @@ func (g *Erfc) Satisfy() bool {
 
 func ErfcAbs(output, label float32) float64 {
 	dif := math.Abs(float64(label) - float64(output))
-	return math.Erfc(dif)
+	return math.Erfc(dif/math.Abs(float64(label)))
+	//return math.Erfc(dif)
 }
 
 type DetailedMetric struct {
