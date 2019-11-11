@@ -61,6 +61,14 @@ func MinI(a ...int) int {
 	return r
 }
 
+func Sub(a, b []float32) []float32 {
+	r := make([]float32, MinI(len(a), len(b)))
+	for i := range r {
+		r[i] = (a[i] - b[i])
+	}
+	return r
+}
+
 func SubMul(c float32, a, b []float32) []float32 {
 	r := make([]float32, MinI(len(a), len(b)))
 	for i := range r {

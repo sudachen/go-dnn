@@ -2,12 +2,16 @@ package fu
 
 import "math"
 
-func IfNaN(a, dflt float32) float32 {
+func IsNaN(a float32) bool {
 	q := float64(a)
 	if math.IsNaN(q) || math.IsInf(q, -1) || math.IsInf(q, 0) {
-		return dflt
+		return true
 	}
-	return a
+	return false
+}
+
+func IfNaN(a, dflt float32) float32 {
+	return IfElse(IsNaN(a),dflt,a)
 }
 
 func HasNaN(l []float32) bool {

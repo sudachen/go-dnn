@@ -2,6 +2,7 @@ package ng
 
 import (
 	"fmt"
+	"github.com/sudachen/go-dnn/fu"
 	"math"
 )
 
@@ -54,8 +55,8 @@ type Erfc struct {
 func (g *Erfc) Collect(data, label []float32) {
 	var m float64
 	for i, v := range label {
-		m += math.Erfc(math.Abs(float64(v - data[i]))/math.Abs(float64(v)))
-		//m += math.Erfc(math.Abs(float64(v - data[i])))
+		//m += math.Erfc(math.Abs(float64(v - data[i]))/math.Abs(float64(v)))
+		m += math.Erfc(math.Abs(float64(v - data[i])))
 	}
 	g.vals += m / float64(len(label))
 	g.count++
@@ -74,17 +75,17 @@ func (g *Erfc) Satisfy() bool {
 	return g.Accuracy > 0 && g.Value() >= g.Accuracy
 }
 
-func ErfcAbs(output, label float32) float64 {
+func ErfcAbs(scale, output, label float32) float64 {
 	dif := math.Abs(float64(label) - float64(output))
-	return math.Erfc(dif/math.Abs(float64(label)))
-	//return math.Erfc(dif)
+	return math.Erfc(dif*float64(scale))
 }
 
 type DetailedMetric struct {
 	Vals  []float64
 	Count []int
 	Accuracy float32
-	F     func(float32,float32) float64
+	Scale float32
+	F     func(float32,float32,float32) float64
 }
 
 func (g *DetailedMetric) Collect(data, label []float32) {
@@ -99,7 +100,7 @@ func (g *DetailedMetric) Collect(data, label []float32) {
 	}
 	var m float64
 	for i, v := range label {
-		q := f(v,data[i])
+		q := f(fu.IfZero(g.Scale,1),v,data[i])
 		g.Vals[i] += q
 		g.Count[i]++
 		m += q

@@ -20,6 +20,7 @@ type NfoState struct {
 }
 
 func (st *NfoState) Setup(net *nn.Network, iniSeed int) (seed int, err error) {
+	logger.Infof("setup nfo state for network %v", net.Identity().String()[:12])
 	dir := filepath.Join(st.GnfoDir,net.Identity().String()[:12])
 	if st.Gnfo.Exists(dir) {
 		if err = st.Gnfo.Load(dir); err != nil {
