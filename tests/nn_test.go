@@ -11,12 +11,14 @@ func Test_nn1_Forward(t *testing.T) {
 	var err error
 
 	input := [][]float32{
+		{0.1, 0.1, 0.1},
 		{1, 2, 3},
 		{1, 1, 1},
 		{0, 0, 0},
 	}
 
 	output := [][]float32{
+		{0.3, 0.3, 0.3},
 		{3, 6, 9},
 		{3, 3, 3},
 		{0, 0, 0},
@@ -28,12 +30,13 @@ func Test_nn1_Forward(t *testing.T) {
 	assert.Assert(t, net != nil)
 	defer net.Release()
 
+	net.PrintSummary(true)
+
 	assert.Assert(t, net.Graph.Output.Depth() == 2)
 	assert.Assert(t, net.Graph.Output.Len(0) == 1)
 	assert.Assert(t, net.Graph.Output.Len(1) == 3)
 
 	mx.CPU.RandomSeed(42)
-
 	for n := 0; n < len(input); n++ {
 		assert.NilError(t, err)
 		r, err := net.Predict(input[n : n+1])
@@ -60,8 +63,6 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 	assert.NilError(t, err)
 	assert.Assert(t, net != nil)
 	defer net.Release()
-
-	net.PrintSummary(true)
 
 	input := []float32{1, 1}
 	label := []float32{0, 0}
@@ -94,8 +95,8 @@ func f_nn1(t *testing.T, opt nn.OptimizerConf, ini mx.Inite, loss mx.Loss) {
 
 func Test_nn1(t *testing.T) {
 	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, nil, &nn.L0Loss{})
-	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, &nn.Const{0}, &nn.L2Loss{})
+	f_nn1(t, &nn.SGD{Lr: .1, Mom: 0.8}, &nn.Const{0}, &nn.L2Loss{Num:2})
 	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Const{.1}, &nn.L0Loss{})
-	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Xavier{Gaussian: true, Magnitude: 0.5}, &nn.L2Loss{})
-	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Uniform{}, &nn.L1Loss{})
+	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Xavier{Gaussian: true, Magnitude: 0.5}, &nn.L2Loss{Num:2})
+	f_nn1(t, &nn.Adam{Lr: .1}, &nn.Uniform{}, &nn.L1Loss{Num:2})
 }

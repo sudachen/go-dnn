@@ -34,6 +34,7 @@ func Bind(ctx mx.Context, nb Block, input mx.Dimension, loss mx.Loss) (*Network,
 }
 
 func (f *Network) Predict1(data interface{}, out []float32) error {
+	if !f.Initialized { f.Initialize(nil) }
 	if err := f.Graph.Input.SetValues(data); err != nil {
 		return err
 	}
