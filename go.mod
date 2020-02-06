@@ -9,7 +9,7 @@ require (
 	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/logger v1.0.1
 	github.com/pkg/errors v0.8.1 // indirect
-	github.com/sudachen/errors v1.0.1
+	github.com/sudachen/errors v1.0.2
 	github.com/xitongsys/parquet-go v1.4.0
 	github.com/xitongsys/parquet-go-source v0.0.0-20190902023021-473506c401f7
 	gopkg.in/yaml.v2 v2.2.4 // indirect

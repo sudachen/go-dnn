@@ -2,6 +2,8 @@ package fu
 
 import "math"
 
+var NaN = float32(math.NaN())
+
 func IsNaN(a float32) bool {
 	q := float64(a)
 	if math.IsNaN(q) || math.IsInf(q, -1) || math.IsInf(q, 0) {

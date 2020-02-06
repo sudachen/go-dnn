@@ -1,6 +1,7 @@
 package feature
 
 import (
+	"math"
 	"sort"
 	"unsafe"
 )
@@ -46,6 +47,32 @@ func (ser *Series) UpdateAvg(index int64, value float32) {
 		v.Value = float32((float64(v.Value)*float64(v.Count)+float64(value))/float64(v.Count+1))
 		v.Count++
 	})
+}
+
+func (ser *Series) UpdateSum(index int64, value float32) {
+	ser.UpdateEx(index,value, 0, func(v *SeriesItem){
+		v.Value += value
+		v.Count++
+	})
+}
+
+func (ser *Series) At(index int64) (SeriesItem, bool) {
+	L := len(ser.Items)
+	if L != 0 && ser.First == index {
+		return ser.Items[0], true
+	}
+	if L != 0 && ser.Last == index {
+		return ser.Items[L-1], true
+	}
+	if L != 0 {
+		i := sort.Search(L,func(n int)bool{
+			return ser.Items[n].Index >= index
+		})
+		if i < L && i > 0 && ser.Items[i].Index == index {
+			return ser.Items[i], true
+		}
+	}
+	return SeriesItem{}, false
 }
 
 func (ser *Series) UpdateEx(index int64, value, v2 float32, update func(*SeriesItem)) {
@@ -128,5 +155,36 @@ func (ser *Series) Resample(
 			}
 			sampler(dx,ser.Items[j:e])
 		}
+	}
+}
+
+func Merge(merge func(index int64, item []SeriesItem, ok []bool), a ...Series) {
+	i := make([]int,len(a))
+	item := make([]SeriesItem,len(a))
+	ok := make([]bool,len(a))
+
+	for {
+		k := int64(math.MaxInt64)
+		for j,v := range a {
+			ii := i[j]
+			if ii < v.Len() && v.Items[ii].Index < k {
+				k = v.Items[ii].Index
+			}
+		}
+		if k == math.MaxInt64 {
+			break
+		}
+		for j,v := range a {
+			ii := i[j]
+			if ii < v.Len() && v.Items[ii].Index == k {
+				item[j] = v.Items[ii]
+				ok[j] = true
+				i[j]++
+			} else {
+				item[j] = SeriesItem{}
+				ok[j] = false
+			}
+		}
+		merge(k, item, ok)
 	}
 }
